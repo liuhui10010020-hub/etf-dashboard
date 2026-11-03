@@ -265,6 +265,17 @@ const fmtInt = n=> (n==null||isNaN(n))?'--':Math.round(n).toLocaleString('zh-CN'
 const pct = n=> (n==null||isNaN(n))?'--':(n*100).toFixed(2)+'%';
 const cls = n=> (n==null||isNaN(n))?'':(n>=0?'up':'down');
 const arrow = n=> (n==null||isNaN(n))?'':(n>=0?'▲ ':'▼ ');
+const fallbackNavLabel = NAV_DATE ? `T-1 ${NAV_DATE.slice(5)}` : 'T-1';
+function navTag(p){
+  const isLatest = !!p.navIsLatest;
+  const color = isLatest ? 'var(--live)' : 'var(--txt3)';
+  const label = isLatest ? '最新' : fallbackNavLabel;
+  return `${fmt(p.nav,4)} <span style="color:${color};font-size:10px" id="navd-${p.code}">${label}</span>`;
+}
+function updateNavDisplay(p){
+  const navEl = document.getElementById('nav-' + p.code);
+  if(navEl) navEl.innerHTML = navTag(p);
+}
 
 // 东方财富 JSONP 请求
 function emJsonp(secid, fields, cb){
@@ -304,7 +315,7 @@ function renderCards(){
       <div class="grid2">
         ${p.isUsStock ? `<div class="kv"><span class="k">参考净值</span><span class="v" style="color:var(--txt3)">非场内基金</span></div>
         <div class="kv"><span class="k">实时溢价率</span><span class="v" style="color:var(--txt3)">--</span></div>` :
-        `<div class="kv"><span class="k">实时估值(IOPV)</span><span class="v" id="nav-${p.code}">${fmt(p.nav,4)} <span style="color:var(--txt3);font-size:10px" id="navd-${p.code}">实时IOPV</span></span></div>
+        `<div class="kv"><span class="k">实时估值(IOPV)</span><span class="v" id="nav-${p.code}">${navTag(p)}</span></div>
         <div class="kv"><span class="k">实时溢价率</span><span class="v live" id="pr-${p.code}">--</span></div>`}
         <div class="kv"><span class="k">今开</span><span class="v" id="op-${p.code}">--</span></div>
 
@@ -573,13 +584,12 @@ function fetchAll(){
   // 统一通过腾讯接口获取 IOPV 和备用行情
   fetchTencent(PORTFOLIO, (txData) => {
     PORTFOLIO.forEach(p => {
-      if (txData[p.code] && txData[p.code].iopv) {
-        p.nav = txData[p.code].iopv; // 替换为 IOPV
-        const navEl = document.getElementById('nav-' + p.code);
-        if (navEl) {
-          navEl.innerHTML = `${fmt(p.nav,4)} <span style="color:var(--txt3);font-size:10px">实时IOPV</span>`;
-        }
+      const iopv = txData[p.code] && Number.isFinite(txData[p.code].iopv) ? txData[p.code].iopv : null;
+      p.navIsLatest = !!(iopv && iopv > 0);
+      if (p.navIsLatest) {
+        p.nav = iopv; // 拿到腾讯实时 IOPV 时才更新为最新参考净值
       }
+      updateNavDisplay(p);
     });
 
     let done = 0, okCount = 0, total = PORTFOLIO.length;
