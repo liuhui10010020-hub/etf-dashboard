@@ -150,8 +150,8 @@
   <div class="note">
     <strong>数据说明：</strong>
     ① <b>现价 / 涨跌幅</b>：通过东方财富 push2 行情接口（JSONP）实时获取，交易日 9:30-15:00 更新。<br>
-    ② <b>参考净值</b>：QDII-ETF 跨境基金，场内无实时 IOPV，此处展示最新已公布单位净值（T-1，每日收盘后更新）。<br>
-    ③ <b>实时溢价率</b> = 现价 / 参考净值 − 1；<b>成本 vs 现价</b> = 现价 / 平均成本 − 1（即浮盈浮亏%）；<b>成本 vs 净值</b> = 净值 / 平均成本 − 1。<br>
+    ② <b>实时估值</b>：QDII-ETF 跨境基金盘中溢价参考腾讯财经提供的实时估值(IOPV)，收盘后或因特殊情况可能会与最新 T-1 净值有偏差。<br>
+    ③ <b>实时溢价率</b> = 现价 / 实时估值(IOPV) − 1；<b>成本 vs 现价</b> = 现价 / 平均成本 − 1（即浮盈浮亏%）；<b>成本 vs 净值</b> = 实时估值 / 平均成本 − 1。<br>
     ④ <b>代码说明</b>：对比品种为嘉实纳斯达克100ETF (159501)。<br>
     ⑤ 仅供参考，不构成投资建议。数据来源：东方财富 push2.eastmoney.com、各基金公司公告。
   </div>
@@ -389,9 +389,9 @@ function applyLive(p, d){
   let price = d.f43 === '-' ? d.f60 : d.f43;
   if(price === '-' || price == null) return;
   let chg = d.f170 === '-' ? 0 : d.f170;
-  let high = d.f44 === '-' ? price : d.f44;
-  let low = d.f45 === '-' ? price : d.f45;
-  let open = d.f46 === '-' ? price : d.f46;
+  let high = (d.f44 === '-' || d.f44 === 0) ? price : d.f44;
+  let low = (d.f45 === '-' || d.f45 === 0) ? price : d.f45;
+  let open = (d.f46 === '-' || d.f46 === 0) ? price : d.f46;
   let pre = d.f60;
 
   liveData[p.code]={price,chg,high,low,open,pre};
