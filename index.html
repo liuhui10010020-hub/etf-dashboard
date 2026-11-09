@@ -803,7 +803,7 @@ function renderChart(item, data) {
     title: {
       text: item.name + ' (' + item.code + ')',
       textStyle: { color: '#e6edf3', fontSize: 15, fontWeight: 'bold' },
-      subtext: `${item.historySource || '收盘价'} · 截至 ${lastDate}${item.isUsStock ? '' : (observed.length ? ' · IOPV为本机实采记录' : ' · 无历史IOPV，不填造溢价曲线')}`,
+      subtext: `${item.historySource || '收盘价'} · 截至 ${lastDate}${item.isUsStock ? '' : (observed.length ? ' · IOPV为本机实采记录' : ' · 无历史IOPV，不补绘溢价曲线')}`,
       subtextStyle: { color: '#5c6675', fontSize: 10 }
     },
     tooltip: { 
