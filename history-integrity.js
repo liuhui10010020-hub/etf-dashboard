@@ -14,11 +14,11 @@ function sanitizeHistory(item, raw, now = new Date()) {
 }
 function combineHistory(item, rows, now = new Date()) {
   const latestCloses = {
-    '513390': [['2026-11-05',2.410],['2026-11-06',2.332],['2026-11-09',2.325]],
-    '159655': [['2026-11-05',1.998],['2026-11-06',1.936],['2026-11-09',1.949]],
-    '159501': [['2026-11-05',2.132],['2026-11-06',2.069],['2026-11-09',2.055]],
-    'QQQ': [['2026-11-04',691.950],['2026-11-05',647.050],['2026-11-06',656.100]]
-  }; // Tencent completed-session closes, verified 2026-11-09 after close; never IOPV values.
+    '513390': [['2026-11-06',2.332],['2026-11-09',2.325],['2026-11-10',2.409]],
+    '159655': [['2026-11-06',1.936],['2026-11-09',1.949],['2026-11-10',1.995]],
+    '159501': [['2026-11-06',2.069],['2026-11-09',2.055],['2026-11-10',2.110]],
+    'QQQ': [['2026-11-05',647.050],['2026-11-06',656.100],['2026-11-09',679.350]]
+  }; // Tencent completed-session closes, verified 2026-11-10 after close; never IOPV values.
   const map = new Map(sanitizeHistory(item, getStaticHistory(item), now).map(r => [r[0], r]));
   sanitizeHistory(item, latestCloses[item.code] || [], now).forEach(row => map.set(row[0], row));
   sanitizeHistory(item, rows, now).forEach(row => map.set(row[0], row));
