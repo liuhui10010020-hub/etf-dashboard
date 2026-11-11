@@ -1,5 +1,5 @@
 /* Close-price history, historical reference premiums, and timestamp-matched IOPV observations use separate series. */
-/* global getMarketDate, validPositive, getStaticHistory, echarts, renderChart, renderStaticHistory */
+/* global getMarketDate, validPositive, getStaticHistory, echarts, renderChart, renderStaticHistory, document, window */
 /* exported recordIopv, loadHistoryAndRender */
 function sanitizeHistory(item, raw, now = new Date()) {
   const date = getMarketDate(item, now);
@@ -16,9 +16,9 @@ function sanitizeHistory(item, raw, now = new Date()) {
 }
 function combineHistory(item, rows, now = new Date()) {
   const latestCloses = {
-    '513390': [['2026-11-06',2.332],['2026-11-09',2.325],['2026-11-10',2.409],['2026-11-11',2.442]],
-    '159655': [['2026-11-06',1.936],['2026-11-09',1.949],['2026-11-10',1.995],['2026-11-11',2.001]],
-    '159501': [['2026-11-06',2.069],['2026-11-09',2.055],['2026-11-10',2.110],['2026-11-11',2.123]],
+    '513390': [['2026-11-05',2.410],['2026-11-06',2.332],['2026-11-09',2.325],['2026-11-10',2.409],['2026-11-11',2.442]],
+    '159655': [['2026-11-05',1.998],['2026-11-06',1.936],['2026-11-09',1.949],['2026-11-10',1.995],['2026-11-11',2.001]],
+    '159501': [['2026-11-05',2.132],['2026-11-06',2.069],['2026-11-09',2.055],['2026-11-10',2.110],['2026-11-11',2.123]],
     'QQQ': [['2026-11-05',647.050],['2026-11-06',656.100],['2026-11-09',679.350],['2026-11-10',674.760]]
   }; // Tencent completed-session closes, verified 2026-11-11 after A-share close; never IOPV values.
   const map = new Map(sanitizeHistory(item, getStaticHistory(item), now).map(r => [r[0], r]));
@@ -29,6 +29,61 @@ function combineHistory(item, rows, now = new Date()) {
   sanitizeHistory(item, latestCloses[item.code] || [], now).forEach(mergeRow);
   sanitizeHistory(item, rows, now).forEach(mergeRow);
   return Array.from(map.values()).sort((a,b) => a[0].localeCompare(b[0]));
+}
+function buildHistoricalReferenceRows(rows, officialNavRows = []) {
+  if (!Array.isArray(officialNavRows) || !officialNavRows.length) return rows;
+  const navMap = new Map(officialNavRows);
+  let latestNav = null;
+  return rows.map(row => {
+    const publishedNav = navMap.get(row[0]);
+    if (validPositive(publishedNav)) latestNav = publishedNav;
+    if (validPositive(latestNav)) {
+      return [row[0], row[1], (row[1] / latestNav - 1) * 100];
+    }
+    return [row[0], row[1], row[2] ?? null];
+  });
+}
+let officialNavQueue = Promise.resolve();
+function loadOfficialNavHistory(item) {
+  if (item.isUsStock) return Promise.resolve([]);
+  officialNavQueue = officialNavQueue.then(() => new Promise(resolve => {
+    const previousGlobal = window.Data_netWorthTrend;
+    const script = document.createElement('script');
+    let settled = false;
+    const timeout = setTimeout(() => finish([]), 8000);
+    const finish = rows => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      window.Data_netWorthTrend = previousGlobal;
+      script.remove();
+      resolve(rows);
+    };
+    script.onload = () => {
+      try {
+        const rows = (window.Data_netWorthTrend || [])
+          .filter(point => point && Number.isFinite(point.x) && validPositive(Number(point.y)))
+          .map(point => {
+            const date = new Date(point.x);
+            const yyyy = date.getFullYear();
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+            return [`${yyyy}-${mm}-${dd}`, Number(point.y)];
+          });
+        finish(rows);
+      } catch (error) {
+        console.warn('Official NAV parse failed:', item.code, error.message);
+        finish([]);
+      }
+    };
+    script.onerror = () => {
+      console.warn('Official NAV unavailable:', item.code);
+      finish([]);
+    };
+    script.src = `https://fund.eastmoney.com/pingzhongdata/${item.code}.js?v=${Date.now()}`;
+    document.head.appendChild(script);
+  })).catch(() => []);
+  return officialNavQueue;
 }
 function readIopvArchive(item) {
   try {
@@ -65,8 +120,12 @@ async function loadHistoryAndRender(item) {
     const data = result.data && result.data[symbol];
     const raw = data && (data.day || data.qfqday);
     if (!Array.isArray(raw) || !raw.length) throw new Error('Empty history');
-    const rows = combineHistory(item, raw.map(k => [k[0], Number(k[2]), null]));
-    item.historySource = '腾讯K线 / 本地收盘缓存';
+    const officialNavRows = await loadOfficialNavHistory(item);
+    const mergedRows = combineHistory(item, raw.map(k => [k[0], Number(k[2]), null]));
+    const rows = buildHistoricalReferenceRows(mergedRows, officialNavRows);
+    item.historySource = officialNavRows.length
+      ? '腾讯K线 / 东财已公布净值 / 本地缓存'
+      : '腾讯K线 / 本地缓存净值';
     renderChart(item, rows);
   } catch (error) {
     item.historySource = '历史缓存 · 实时历史接口暂不可用';
