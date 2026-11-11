@@ -145,7 +145,7 @@
   <div class="summary" id="summary"></div>
 
   <!-- Historical Charts -->
-  <div class="sec-title"><span class="bar"></span>历史趋势 (收盘价 / IOPV实采溢价率) <span class="hint">2026年1月1日至今 · 腾讯K线 / 实采IOPV / 日期标注缓存</span></div>
+  <div class="sec-title"><span class="bar"></span>历史趋势 (收盘价 / 历史参考溢价率 / 实采IOPV) <span class="hint">2026年1月1日至今 · 腾讯K线 / 历史参考净值 / 实采IOPV / 日期标注缓存</span></div>
   <div class="charts-wrap" id="chartsWrap" style="display:grid;grid-template-columns:1fr;gap:16px;margin-bottom:24px;">
   </div>
 
@@ -155,7 +155,7 @@
     ② <b>实时估值(IOPV)</b>：采用腾讯财经 IOPV 字段；该字段不提供独立估值时间，卡片时间为同行情响应的报价时间。IOPV 无效或超时则使用带日期的参考值，不冒充实时估值。<br>
     ③ <b>实时溢价率</b> = 有效现价 / 实时IOPV − 1；任一输入非实时则标为“参考溢价率”。<b>持仓盈亏</b> = 现价×份额−买入金额；表内折算成本 = 买入金额/份额，原始记录成交价保留在单元格提示中；<b>加权买入溢价率</b>使用原始买入溢价率按买入金额加权，不随今日IOPV变化。<br>
     ④ 无有效成交、报价超时或接口失败时显式标注参考状态；今开 / 最高 / 最低缺失保留“未提供”，不填0，也不捏造为最新价。汇总中如含参考报价，会标注“含参考报价估算”；缺任一持仓价则不显示不完整的总盈亏。<br>
-    ⑤ <b>图表口径</b>：蓝线只显示已完成交易日的收盘价，日期与缓存来源明确标注；黄线只记录当前浏览器实采的有效报价与IOPV，不将历史净值曲线伪称IOPV，也不补造未采集日期。QQQ 是美国上市ETF，不套用A股QDII的IOPV溢价口径。<br>
+    ⑤ <b>图表口径</b>：蓝线只显示已完成交易日的收盘价，日期与缓存来源明确标注；黄线为历史收盘价相对已公布或缓存参考净值计算的<b>历史参考溢价率</b>，覆盖完整历史区间但不冒充实时IOPV；紫色点线仅记录当前浏览器实采的有效报价与实时IOPV溢价，不补造未采集日期。QQQ 是美国上市ETF，不套用A股QDII的IOPV溢价口径。<br>
     ⑥ 仅供参考，不构成投资建议。来源：东方财富 push2.eastmoney.com、腾讯财经 qt.gtimg.cn / web.ifzq.gtimg.cn。
   </div>
 </div>
@@ -788,12 +788,21 @@ function renderChart(item, data) {
 
   const priceRows = data;
   const observed = item.isUsStock ? [] : readIopvArchive(item);
-  const timeline = [...priceRows.map(row => [row[0], row[1], null]),
-    ...observed.map(row => [row[0], null, (row[1] / row[2] - 1) * 100])]
-    .sort((a,b) => a[0].localeCompare(b[0]));
-  let dates = timeline.map(d => d[0]);
-  let prices = timeline.map(d => d[1]);
-  let prems = timeline.map(d => d[2]);
+  const priceMap = new Map(priceRows.map(row => [row[0], row]));
+  const historicalPremiumMap = new Map(priceRows
+    .filter(row => Number.isFinite(row[2]))
+    .map(row => [row[0], row[2]]));
+  const iopvPremiumMap = new Map(observed.map(row => [
+    row[0].slice(0, 10),
+    (row[1] / row[2] - 1) * 100
+  ]));
+  const dates = Array.from(new Set([
+    ...priceRows.map(row => row[0]),
+    ...Array.from(iopvPremiumMap.keys())
+  ])).sort((a,b) => a.localeCompare(b));
+  const prices = dates.map(date => priceMap.get(date)?.[1] ?? null);
+  const historicalPrems = dates.map(date => historicalPremiumMap.get(date) ?? null);
+  const iopvPrems = dates.map(date => iopvPremiumMap.get(date) ?? null);
   const lastDate = priceRows[priceRows.length - 1][0];
   const markPoints = item.trades.map(t => ({name:'买入',coord:[parseTradeDate(t.date),t.cost],value:'买入',
     symbol:'circle',symbolSize:10,itemStyle:{color:'#ef4444',borderColor:'#fff',borderWidth:1}}));
@@ -802,7 +811,7 @@ function renderChart(item, data) {
     title: {
       text: item.name + ' (' + item.code + ')',
       textStyle: { color: '#e6edf3', fontSize: 15, fontWeight: 'bold' },
-      subtext: `${item.historySource || '收盘价'} · 截至 ${lastDate}${item.isUsStock ? '' : (observed.length ? ' · IOPV为本机实采记录' : ' · 无历史IOPV，不补绘溢价曲线')}${item.trades.length ? ' · 红点=买入' : ''}`,
+      subtext: `${item.historySource || '收盘价'} · 截至 ${lastDate}${item.isUsStock ? '' : ' · 黄线=历史参考溢价率' + (observed.length ? ' · 紫线/点=实采IOPV溢价率' : '')}${item.trades.length ? ' · 红点=买入' : ''}`,
       subtextStyle: { color: '#8b97a7', fontSize: 11 }
     },
     tooltip: { 
@@ -810,7 +819,7 @@ function renderChart(item, data) {
       axisPointer: { type: 'cross' },
       valueFormatter: (value) => (typeof value === 'number' ? value.toFixed(3) : value)
     },
-    legend: { data: item.isUsStock ? ['收盘价'] : ['收盘价', 'IOPV实采溢价率(%)'], textStyle: { color: '#8b97a7' }, top: 0, right: 0 },
+    legend: { data: item.isUsStock ? ['收盘价'] : ['收盘价', '历史参考溢价率(%)', ...(observed.length ? ['实采IOPV溢价率(%)'] : [])], textStyle: { color: '#8b97a7' }, top: 0, right: 0 },
     grid: { left: 56, right: 96, top: 80, bottom: 64, containLabel: true },
     xAxis: { type: 'category', data: dates, axisLine: { lineStyle: { color: '#1f2733' } },
       axisLabel: { color: '#8b97a7', hideOverlap: true, showMaxLabel: false,
@@ -827,7 +836,7 @@ function renderChart(item, data) {
         axisLabel: { color: '#8b97a7' }
       },
       {
-        type: 'value', name: 'IOPV实采溢价率(%)', scale: true,
+        type: 'value', name: '溢价率(%)', scale: true,
         splitLine: { show: false },
         min: value => Math.floor(value.min - 1),
         max: value => Math.ceil(value.max + 1),
@@ -860,21 +869,31 @@ function renderChart(item, data) {
         markPoint: { data: markPoints, label: { show: false }, tooltip: { formatter: '{b}价: {c}' } }
       },
       {
-        name: 'IOPV实采溢价率(%)',
+        name: '历史参考溢价率(%)',
         type: 'line',
         yAxisIndex: 1,
-        data: prems,
+        data: historicalPrems,
         connectNulls: false,
         itemStyle: { color: '#f5b301' },
-        showSymbol: true,
-        symbolSize: 4,
+        showSymbol: false,
         areaStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
             { offset: 0, color: 'rgba(245, 179, 1, 0.4)' },
             { offset: 1, color: 'rgba(245, 179, 1, 0.05)' }
           ])
         }
-      }
+      },
+      ...(observed.length ? [{
+        name: '实采IOPV溢价率(%)',
+        type: 'line',
+        yAxisIndex: 1,
+        data: iopvPrems,
+        connectNulls: false,
+        itemStyle: { color: '#a78bfa' },
+        lineStyle: { type: 'dashed', width: 2 },
+        showSymbol: true,
+        symbolSize: 5
+      }] : [])
     ]
   };
 

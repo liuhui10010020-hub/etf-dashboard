@@ -1,4 +1,4 @@
-/* Close-price history and timestamp-matched IOPV observations use separate series. */
+/* Close-price history, historical reference premiums, and timestamp-matched IOPV observations use separate series. */
 /* global getMarketDate, validPositive, getStaticHistory, echarts, renderChart, renderStaticHistory */
 /* exported recordIopv, loadHistoryAndRender */
 function sanitizeHistory(item, raw, now = new Date()) {
@@ -12,7 +12,7 @@ function sanitizeHistory(item, raw, now = new Date()) {
   const marketClosed = hours * 60 + minutes >= (item.isUsStock ? 960 : 900);
   return raw.filter(row => row[0] >= '2026-01-01' &&
     (row[0] < date || (row[0] === date && marketClosed)) && validPositive(Number(row[1])))
-    .map(row => [row[0], Number(row[1]), null]);
+    .map(row => [row[0], Number(row[1]), row[2] !== null && row[2] !== undefined && Number.isFinite(Number(row[2])) ? Number(row[2]) : null]);
 }
 function combineHistory(item, rows, now = new Date()) {
   const latestCloses = {
@@ -22,8 +22,12 @@ function combineHistory(item, rows, now = new Date()) {
     'QQQ': [['2026-11-05',647.050],['2026-11-06',656.100],['2026-11-09',679.350],['2026-11-10',674.760]]
   }; // Tencent completed-session closes, verified 2026-11-11 after A-share close; never IOPV values.
   const map = new Map(sanitizeHistory(item, getStaticHistory(item), now).map(r => [r[0], r]));
-  sanitizeHistory(item, latestCloses[item.code] || [], now).forEach(row => map.set(row[0], row));
-  sanitizeHistory(item, rows, now).forEach(row => map.set(row[0], row));
+  const mergeRow = row => {
+    const old = map.get(row[0]);
+    map.set(row[0], old && row[2] === null ? [row[0], row[1], old[2]] : row);
+  };
+  sanitizeHistory(item, latestCloses[item.code] || [], now).forEach(mergeRow);
+  sanitizeHistory(item, rows, now).forEach(mergeRow);
   return Array.from(map.values()).sort((a,b) => a[0].localeCompare(b[0]));
 }
 function readIopvArchive(item) {
