@@ -7,7 +7,7 @@
 <style>
   :root{
     --bg:#0b0e14; --panel:#131822; --panel2:#0f141d; --border:#1f2733;
-    --txt:#e6edf3; --txt2:#8b97a7; --txt3:#5c6675;
+    --txt:#e6edf3; --txt2:#9aa8b8; --txt3:#8794a5;
     --up:#ef4444; --down:#22c55e; --live:#22c55e; --gold:#f5b301; --cyan:#38bdf8; --violet:#a78bfa;
     --shadow:0 4px 24px rgba(0,0,0,.4);
   }
@@ -52,9 +52,9 @@
   .chg{font-size:18px;font-weight:600;font-variant-numeric:tabular-nums}
   .up{color:var(--up)} .down{color:var(--down)} .flat{color:var(--txt2)}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin-top:14px}
-  .kv{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:rgba(255,255,255,.02);border-radius:8px;border:1px solid rgba(255,255,255,.03)}
-  .kv .k{font-size:12px;color:var(--txt2)}
-  .kv .v{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
+  .kv{display:grid;grid-template-columns:minmax(76px,max-content) minmax(0,1fr);align-items:start;gap:4px 10px;padding:6px 10px;background:rgba(255,255,255,.02);border-radius:8px;border:1px solid rgba(255,255,255,.03)}
+  .kv .k{font-size:12px;color:var(--txt2);white-space:nowrap}
+  .kv .v{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;min-width:0;text-align:right;line-height:1.35;overflow-wrap:anywhere}
   .kv .v.live::after{content:"●";color:var(--cyan);font-size:8px;margin-left:4px;animation:pulse 1.6s infinite}
   .prem-bar{margin-top:12px}
   .prem-label{display:flex;justify-content:space-between;font-size:11px;color:var(--txt3);margin-bottom:4px}
@@ -486,14 +486,14 @@ function applyLive(p, d){
   const noteEl = $(`#qn-${c}`);
   if(noteEl){ noteEl.textContent = quoteNote(p, d); }
 
-  $(`#op-${c}`).textContent = d.stale ? '--（未提供当日成交）' : fmtMetric(d.f46,3);
-  $(`#hl-${c}`).textContent = d.stale ? '-- / --（未提供当日成交）' : `${fmtMetric(d.f44,3)} / ${fmtMetric(d.f45,3)}`;
+  $(`#op-${c}`).textContent = d.stale ? '--（无成交）' : fmtMetric(d.f46,3);
+  $(`#hl-${c}`).textContent = d.stale ? '-- / --（无成交）' : `${fmtMetric(d.f44,3)} / ${fmtMetric(d.f45,3)}`;
   const pcEl=$(`#pc-${c}`); if(pcEl) pcEl.textContent=fmt(d.f60,3);
 
   const prLabelEl=$(`#prl-${c}`);
   if(prLabelEl) prLabelEl.textContent = reference ? '参考溢价率' : '实时溢价率';
   const premBarLabelEl=$(`#plb-${c}`);
-  if(premBarLabelEl) premBarLabelEl.textContent = reference ? '参考溢价水平' : '溢价水平';
+  if(premBarLabelEl) premBarLabelEl.textContent = reference ? '参考溢价水平' : '实时溢价水平';
 
   if (!p.isUsStock && validPositive(p.nav) && d.valid) {
     const price = d.f43;
@@ -812,7 +812,7 @@ function renderChart(item, data) {
       valueFormatter: (value) => (typeof value === 'number' ? value.toFixed(3) : value)
     },
     legend: { data: item.isUsStock ? ['收盘价'] : ['收盘价', 'IOPV实采溢价率(%)'], textStyle: { color: '#8b97a7' }, top: 0, right: 0 },
-    grid: { left: '2%', right: '2%', top: 80, bottom: '2%', containLabel: true },
+    grid: { left: 56, right: 96, top: 80, bottom: 64, containLabel: true },
     xAxis: { type: 'category', data: dates, axisLine: { lineStyle: { color: '#1f2733' } }, axisLabel: { color: '#8b97a7' } },
     yAxis: item.isUsStock ? [
       { type: 'value', name: '收盘价', scale: true, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } }, axisLabel: { color: '#8b97a7' } }
@@ -825,7 +825,10 @@ function renderChart(item, data) {
       {
         type: 'value', name: 'IOPV实采溢价率(%)', scale: true,
         splitLine: { show: false },
-        axisLabel: { color: '#8b97a7', formatter: '{value}%' }
+        min: value => Math.floor(value.min - 1),
+        max: value => Math.ceil(value.max + 1),
+        splitNumber: 4,
+        axisLabel: { show: true, color: '#9aa8b8', margin: 12, formatter: value => `${Number(value).toFixed(0)}%` }
       }
     ],
 
