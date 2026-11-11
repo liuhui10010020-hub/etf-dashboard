@@ -214,9 +214,10 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
 (function(){
   try{
     const patch = {
-      "513390": [["2026-11-09", 2.325, 14.729829755737]],
-      "159655": [["2026-11-09", 1.949, 8.767230314192]],
-      "159501": [["2026-11-09", 2.055, 21.160308944048]]
+      "513390": [["2026-11-09", 2.325, 14.729829755737], ["2026-11-10", 2.409, null], ["2026-11-11", 2.442, 17.262905162064833]],
+      "159655": [["2026-11-09", 1.949, 8.767230314192], ["2026-11-10", 1.995, null], ["2026-11-11", 2.001, 9.54179668254229]],
+      "159501": [["2026-11-09", 2.055, 21.160308944048], ["2026-11-10", 2.110, null], ["2026-11-11", 2.123, 21.79450404451839]],
+      "QQQ": [["2026-11-09", 679.350, null], ["2026-11-10", 674.760, null]]
     };
 
     Object.keys(patch).forEach(code => {
@@ -677,9 +678,7 @@ function fetchAll(){
       const tx = txData[p.code];
       const iopv = tx && toNum(tx.iopv);
       const quoteTime = tx ? getQuoteStamp(p, tx) : '';
-      const quoteAge = Date.now() - Date.parse(quoteTime.replace(' ', 'T') + '+08:00');
-      p.navIsLatest = !p.isUsStock && validPositive(iopv) && !!quoteTime &&
-        (!isChinaTradingTime() ? (quoteAge >= -120000 && quoteAge <= 4 * 86400000) : (quoteAge >= -120000 && quoteAge <= 180000));
+      p.navIsLatest = isIopvCurrent(p, iopv, quoteTime);
       if (p.navIsLatest) {
         p.nav = iopv;
         p.navFallbackDate = quoteTime;
@@ -803,8 +802,8 @@ function renderChart(item, data) {
     title: {
       text: item.name + ' (' + item.code + ')',
       textStyle: { color: '#e6edf3', fontSize: 15, fontWeight: 'bold' },
-      subtext: `${item.historySource || '收盘价'} · 截至 ${lastDate}${item.isUsStock ? '' : (observed.length ? ' · IOPV为本机实采记录' : ' · 无历史IOPV，不补绘溢价曲线')}`,
-      subtextStyle: { color: '#5c6675', fontSize: 10 }
+      subtext: `${item.historySource || '收盘价'} · 截至 ${lastDate}${item.isUsStock ? '' : (observed.length ? ' · IOPV为本机实采记录' : ' · 无历史IOPV，不补绘溢价曲线')}${item.trades.length ? ' · 红点=买入' : ''}`,
+      subtextStyle: { color: '#8b97a7', fontSize: 11 }
     },
     tooltip: { 
       trigger: 'axis', 
@@ -813,7 +812,12 @@ function renderChart(item, data) {
     },
     legend: { data: item.isUsStock ? ['收盘价'] : ['收盘价', 'IOPV实采溢价率(%)'], textStyle: { color: '#8b97a7' }, top: 0, right: 0 },
     grid: { left: 56, right: 96, top: 80, bottom: 64, containLabel: true },
-    xAxis: { type: 'category', data: dates, axisLine: { lineStyle: { color: '#1f2733' } }, axisLabel: { color: '#8b97a7' } },
+    xAxis: { type: 'category', data: dates, axisLine: { lineStyle: { color: '#1f2733' } },
+      axisLabel: { color: '#8b97a7', hideOverlap: true, showMaxLabel: false,
+        interval: (index, value) => value.length === 10 &&
+          (index === 0 || value === lastDate || index % Math.max(1, Math.ceil(priceRows.length / 6)) === 0),
+        formatter: value => value.slice(0,10) }
+    },
     yAxis: item.isUsStock ? [
       { type: 'value', name: '收盘价', scale: true, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } }, axisLabel: { color: '#8b97a7' } }
     ] : [

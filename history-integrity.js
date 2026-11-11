@@ -1,4 +1,6 @@
 /* Close-price history and timestamp-matched IOPV observations use separate series. */
+/* global getMarketDate, validPositive, getStaticHistory, echarts, renderChart, renderStaticHistory */
+/* exported recordIopv, loadHistoryAndRender */
 function sanitizeHistory(item, raw, now = new Date()) {
   const date = getMarketDate(item, now);
   const timeParts = new Intl.DateTimeFormat('en-US', {
@@ -14,11 +16,11 @@ function sanitizeHistory(item, raw, now = new Date()) {
 }
 function combineHistory(item, rows, now = new Date()) {
   const latestCloses = {
-    '513390': [['2026-11-06',2.332],['2026-11-09',2.325],['2026-11-10',2.409]],
-    '159655': [['2026-11-06',1.936],['2026-11-09',1.949],['2026-11-10',1.995]],
-    '159501': [['2026-11-06',2.069],['2026-11-09',2.055],['2026-11-10',2.110]],
-    'QQQ': [['2026-11-05',647.050],['2026-11-06',656.100],['2026-11-09',679.350]]
-  }; // Tencent completed-session closes, verified 2026-11-10 after close; never IOPV values.
+    '513390': [['2026-11-06',2.332],['2026-11-09',2.325],['2026-11-10',2.409],['2026-11-11',2.442]],
+    '159655': [['2026-11-06',1.936],['2026-11-09',1.949],['2026-11-10',1.995],['2026-11-11',2.001]],
+    '159501': [['2026-11-06',2.069],['2026-11-09',2.055],['2026-11-10',2.110],['2026-11-11',2.123]],
+    'QQQ': [['2026-11-05',647.050],['2026-11-06',656.100],['2026-11-09',679.350],['2026-11-10',674.760]]
+  }; // Tencent completed-session closes, verified 2026-11-11 after A-share close; never IOPV values.
   const map = new Map(sanitizeHistory(item, getStaticHistory(item), now).map(r => [r[0], r]));
   sanitizeHistory(item, latestCloses[item.code] || [], now).forEach(row => map.set(row[0], row));
   sanitizeHistory(item, rows, now).forEach(row => map.set(row[0], row));
@@ -68,3 +70,6 @@ async function loadHistoryAndRender(item) {
     console.warn('History fallback:', item.code, error.message);
   } finally { clearTimeout(timer); }
 }
+
+// Public helpers used by index.html's classic scripts.
+Object.assign(window, { recordIopv, loadHistoryAndRender });

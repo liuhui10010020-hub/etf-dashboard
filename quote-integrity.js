@@ -1,4 +1,6 @@
 /* Shared, timezone-independent quote validation. Missing values are never fabricated. */
+/* global fmt */
+/* exported fmtMetric, isIopvCurrent, createQuoteCandidate, pickBestQuote, weightedBuyPremium, tradeProfit, quoteNote */
 function getBeijingNow(now = new Date()) {
   return new Date(now.getTime() + 480 * 60000);
 }
@@ -42,6 +44,17 @@ function getQuoteStamp(p, raw) {
   }
   return '';
 }
+function isIopvCurrent(p, iopv, quoteTime, now = new Date()) {
+  if (p.isUsStock || !validPositive(iopv) || !quoteTime || quoteTime.slice(0,10) !== getMarketDate(p, now)) return false;
+  const age = now.getTime() - Date.parse(quoteTime.replace(' ', 'T') + '+08:00');
+  if (!Number.isFinite(age) || age < -120000) return false;
+  if (isChinaTradingTime(now)) return age <= 180000;
+  const bj = getBeijingNow(now), minutes = bj.getUTCHours() * 60 + bj.getUTCMinutes();
+  const quoteMinutes = Number(quoteTime.slice(11,13)) * 60 + Number(quoteTime.slice(14,16));
+  // Retain only this session's lunch/closing estimate, never a multi-day IOPV as realtime.
+  return (minutes >= 690 && minutes < 780 && quoteMinutes >= 687 && quoteMinutes <= minutes + 2) ||
+    (minutes >= 900 && quoteMinutes >= 897 && quoteMinutes <= minutes + 2);
+}
 function createQuoteCandidate(p, raw, source, now = new Date()) {
   if (!raw) return null;
   const pre = toNum(raw.f60), actual = toNum(raw.f43);
@@ -54,7 +67,7 @@ function createQuoteCandidate(p, raw, source, now = new Date()) {
   const missingPrice = !validPositive(actual);
   let stale = missingPrice || source === 'kline_fallback';
   if (!p.isUsStock) {
-    stale = stale || noTrades;
+    stale = stale || noTrades || !quoteTime || quoteDate !== getMarketDate(p, now);
     if (isChinaTradingTime(now) && quoteDate) {
       const age = now.getTime() - Date.parse(quoteTime.replace(' ', 'T') + '+08:00');
       stale = stale || quoteDate !== getMarketDate(p, now) || age > 180000 || age < -120000;
@@ -85,3 +98,6 @@ function quoteNote(p, d) {
   }
   return (p.isUsStock ? '美股最新报价' : '有效报价') + time;
 }
+
+// Public helpers used by index.html's classic scripts.
+Object.assign(window, { fmtMetric, isIopvCurrent, createQuoteCandidate, pickBestQuote, weightedBuyPremium, tradeProfit, quoteNote });
