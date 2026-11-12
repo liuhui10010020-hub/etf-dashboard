@@ -19,7 +19,7 @@ function combineHistory(item, rows, now = new Date()) {
     '513390': [['2026-11-05',2.410],['2026-11-06',2.332],['2026-11-09',2.325],['2026-11-10',2.409],['2026-11-11',2.442]],
     '159655': [['2026-11-05',1.998],['2026-11-06',1.936],['2026-11-09',1.949],['2026-11-10',1.995],['2026-11-11',2.001]],
     '159501': [['2026-11-05',2.132],['2026-11-06',2.069],['2026-11-09',2.055],['2026-11-10',2.110],['2026-11-11',2.123]],
-    'QQQ': [['2026-11-05',647.050],['2026-11-06',656.100],['2026-11-09',679.350],['2026-11-10',674.760]]
+    'QQQ': [['2026-11-05',647.050],['2026-11-06',656.100],['2026-11-09',679.350],['2026-11-10',674.760],['2026-11-11',690.380]]
   }; // Tencent completed-session closes, verified 2026-11-11 after A-share close; never IOPV values.
   const map = new Map(sanitizeHistory(item, getStaticHistory(item), now).map(r => [r[0], r]));
   const mergeRow = row => {
@@ -108,30 +108,13 @@ function recordIopv(item, quote) {
   if (chart && chart.__priceRows) renderChart(item, chart.__priceRows);
 }
 async function loadHistoryAndRender(item) {
-  renderStaticHistory(item); // Render dated fallback immediately while the network loads.
-  const symbol = (item.market === 'SH' ? 'sh' : item.market === 'SZ' ? 'sz' : 'us') +
-    (item.code === 'QQQ' ? 'QQQ.OQ' : item.code);
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 8000);
-  try {
-    const response = await fetch(`https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${symbol},day,,,400,qfq&_=${Date.now()}`, { signal: controller.signal });
-    if (!response.ok) throw new Error('History HTTP ' + response.status);
-    const result = await response.json();
-    const data = result.data && result.data[symbol];
-    const raw = data && (data.day || data.qfqday);
-    if (!Array.isArray(raw) || !raw.length) throw new Error('Empty history');
-    const officialNavRows = await loadOfficialNavHistory(item);
-    const mergedRows = combineHistory(item, raw.map(k => [k[0], Number(k[2]), null]));
-    const rows = buildHistoricalReferenceRows(mergedRows, officialNavRows);
-    item.historySource = officialNavRows.length
-      ? '腾讯K线 / 东财已公布净值 / 本地缓存'
-      : '腾讯K线 / 本地缓存净值';
-    renderChart(item, rows);
-  } catch (error) {
-    item.historySource = '历史缓存 · 实时历史接口暂不可用';
-    renderStaticHistory(item);
-    console.warn('History fallback:', item.code, error.message);
-  } finally { clearTimeout(timer); }
+  renderStaticHistory(item);
+  const officialNavRows = await loadOfficialNavHistory(item);
+  const rows = buildHistoricalReferenceRows(combineHistory(item, []), officialNavRows);
+  item.historySource = item.isUsStock
+    ? '收盘缓存'
+    : (officialNavRows.length ? '收盘缓存 / 东财已公布净值' : '收盘缓存');
+  renderChart(item, rows);
 }
 
 // Public helpers used by index.html's classic scripts.

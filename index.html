@@ -145,7 +145,7 @@
   <div class="summary" id="summary"></div>
 
   <!-- Historical Charts -->
-  <div class="sec-title"><span class="bar"></span>历史趋势 (收盘价 / 历史参考溢价率 / 实采IOPV) <span class="hint">2026年1月1日至今 · 腾讯K线 / 东财已公布净值 / 实采IOPV / 日期标注缓存</span></div>
+  <div class="sec-title"><span class="bar"></span>历史趋势 (收盘价 / 历史参考溢价率 / 实采IOPV) <span class="hint">2026年1月1日至今 · 收盘缓存 / 东财已公布净值 / 实采IOPV / 日期标注缓存</span></div>
   <div class="charts-wrap" id="chartsWrap" style="display:grid;grid-template-columns:1fr;gap:16px;margin-bottom:24px;">
   </div>
 
@@ -217,7 +217,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
       "513390": [["2026-11-05", 2.410, 20.554249412235514], ["2026-11-06", 2.332, 15.080931701539658], ["2026-11-09", 2.325, 10.946745562130179], ["2026-11-10", 2.409, 15.678271308523396], ["2026-11-11", 2.442, 17.262905162064833]],
       "159655": [["2026-11-05", 1.998, 11.857574739670817], ["2026-11-06", 1.936, 8.03571428571428], ["2026-11-09", 1.949, 6.212534059945507], ["2026-11-10", 1.995, 9.225294278675067], ["2026-11-11", 2.001, 9.553791404325196]],
       "159501": [["2026-11-05", 2.132, 27.420511594549367], ["2026-11-06", 2.069, 21.98573197335063], ["2026-11-09", 2.055, 17.154096117667184], ["2026-11-10", 2.110, 21.048706327806777], ["2026-11-11", 2.123, 21.79450404451839]],
-      "QQQ": [["2026-11-09", 679.350, null], ["2026-11-10", 674.760, null]]
+      "QQQ": [["2026-11-09", 679.350, null], ["2026-11-10", 674.760, null], ["2026-11-11", 690.380, null]]
     };
 
     Object.keys(patch).forEach(code => {
@@ -538,7 +538,7 @@ function applyLive(p, d){
     const hpEl=$(`#hp-${c}`);
     const pnlAmt = tradeProfit({vol:p.totalVol, amt:p.totalAmt}, price);
     const staleSuffix = d.stale ? ' <span class="tag warn" style="margin-left:6px">昨收估算</span>' : '';
-    hpEl.innerHTML=`<span class="${cls(vsCost)}">${fmt(price,3)}</span> <span style="font-size:13px" class="${cls(vsCost)}">${arrow(vsCost)}${pct(vsCost)} (¥${fmtInt(Math.abs(pnlAmt))})</span>${staleSuffix}`;
+    hpEl.innerHTML=`<span class="${cls(vsCost)}">${fmt(price,3)}</span> <span style="font-size:13px" class="${cls(vsCost)}">${arrow(vsCost)}${pct(vsCost)} (${pnlAmt>=0?'+':'-'}¥${fmtInt(Math.abs(pnlAmt))})</span>${staleSuffix}`;
 
     p.trades.forEach(t=>{
       const el=$(`#tpnl-${c}-${t.date}`);
@@ -910,12 +910,12 @@ function renderChart(item, data) {
 function updateLiveStatus(ok, staleCount=0){
   const dot=$('#liveDot'), txt=$('#liveTxt');
   if(ok===PORTFOLIO.length && staleCount===0){
-    dot.classList.remove('off'); txt.textContent='行情已获取';
+    dot.classList.remove('off'); txt.textContent='行情已更新';
   } else if(ok>0){
     dot.classList.remove('off');
     if(staleCount>0){
       const liveCount = Math.max(0, ok - staleCount);
-      txt.textContent=`行情已获取（${liveCount}只有效 / ${staleCount}只参考）`;
+      txt.textContent=`行情已更新（${liveCount}只有效 / ${staleCount}只参考）`;
     } else {
       txt.textContent=`部分行情获取成功 (${ok}/${PORTFOLIO.length})`;
     }
