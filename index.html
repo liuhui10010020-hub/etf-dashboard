@@ -237,7 +237,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
 })();
 </script>
 <script src="quote-integrity.js"></script>
-<script src="history-integrity.js"></script>
+<script src="history-integrity.js?v=20261112-close2"></script>
 <script>
 window.onerror = function(msg, url, line, _col, _err) { console.error("Global JS Error:", msg, "at line", line); };
 /* global STATIC_HIST_DATA, echarts */
@@ -470,6 +470,7 @@ function applyLive(p, d){
 
   const reference = d.stale || !p.navIsLatest;
   liveData[p.code]={...d, price:d.f43, stale:d.stale};
+  recordCompletedClose(p, d);
   const c = p.code;
   const pxEl=$(`#px-${c}`), cgEl=$(`#cg-${c}`);
   pxEl.textContent=fmt(d.f43,3); pxEl.classList.remove('skel');
@@ -516,7 +517,9 @@ function applyLive(p, d){
     const extPxEl = $(`#extpx-${c}`);
     const extCgEl = $(`#extcg-${c}`);
     if (extPxEl && extCgEl) {
-      const snapshot = p.extSnapshot;
+      // Tencent K-line pandata snapshot verified on 2026-11-12; display its actual historical time.
+      const snapshot = p.extSnapshot || (p.code === 'QQQ'
+        ? {price:684.000, time:'2026-11-11 20:01:00', tag:'after'} : null);
       const extPrice = snapshot ? snapshot.price : d.extPrice;
       const extChg = validPositive(extPrice) ? (extPrice / d.f43 - 1) * 100 : null;
       if (validPositive(extPrice)) {

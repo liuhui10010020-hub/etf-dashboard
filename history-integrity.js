@@ -1,5 +1,5 @@
 /* Completed closes, published-NAV references and timestamped IOPV observations remain separate. */
-/* global getMarketDate, validPositive, getStaticHistory, echarts, renderChart, renderStaticHistory, document, window, localStorage, liveData, applyLive */
+/* global getMarketDate, validPositive, getStaticHistory, echarts, renderChart, renderStaticHistory, document, window, localStorage */
 /* exported recordIopv, loadHistoryAndRender */
 function sanitizeHistory(item, raw, now = new Date()) {
   const date = getMarketDate(item, now);
@@ -80,45 +80,24 @@ function loadOfficialNavHistory(item) {
   })).catch(() => []);
   return officialNavQueue;
 }
-let closeRequestSequence = 0;
-function loadTencentCloseHistory(item) {
-  // Tencent's documented variable response avoids CORS; unique globals prevent four ticker requests colliding.
-  return new Promise(resolve => {
-    const symbol = (item.market === 'SH' ? 'sh' : item.market === 'SZ' ? 'sz' : 'us') +
-      (item.code === 'QQQ' ? 'QQQ.OQ' : item.code);
-    const key = 'etf_close_' + Date.now() + '_' + (++closeRequestSequence);
-    const script = document.createElement('script');
-    let settled = false;
-    const timer = setTimeout(() => finish({rows:[]}), 8000);
-    const finish = result => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      script.remove();
-      delete window[key];
-      resolve(result);
-    };
-    script.onload = () => {
-      try {
-        const data = window[key];
-        if (!data || data.code !== 0) return finish({rows:[]});
-        const node = data.data && data.data[symbol];
-        const raw = node && (node.day || node.qfqday);
-        const rows = sanitizeHistory(item, (Array.isArray(raw) ? raw : []).map(r => [r[0], Number(r[2]), null]));
-        const pan = node && node.pandata;
-        const extended = item.isUsStock && pan && validPositive(Number(pan.last)) &&
-          /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(pan.time) && ['before','after'].includes(pan.tag)
-          ? {price:Number(pan.last), time:pan.time, tag:pan.tag} : null;
-        finish({rows, extended});
-      } catch (error) {
-        console.warn('Tencent close parse failed:', item.code, error.message);
-        finish({rows:[]});
-      }
-    };
-    script.onerror = () => finish({rows:[]});
-    script.src = `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?_var=${key}&param=${symbol},day,,,400,qfq&_=${Date.now()}`;
-    document.head.appendChild(script);
-  });
+function recordCompletedClose(item, quote, now = new Date()) {
+  // Reuse the working quote feed; never rely on the blocked K-line JSONP endpoint.
+  // Only a dated, valid regular-session closing quote can become a daily close.
+  if (!quote || quote.stale || quote.missingPrice || quote.noTrades || !validPositive(quote.f43)) return false;
+  const stamp = quote.quoteTime || '';
+  if (!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(stamp)) return false;
+  const minutes = Number(stamp.slice(11,13)) * 60 + Number(stamp.slice(14,16));
+  if (minutes < (item.isUsStock ? 960 : 900) || (item.isUsStock && minutes > 970)) return false;
+  if (!item.isUsStock && stamp.slice(0,10) !== getMarketDate(item, now)) return false;
+  const sampled = sanitizeHistory(item, [[stamp.slice(0,10), quote.f43, null]], now);
+  if (!sampled.length) return false;
+  const rows = combineHistory(item, sampled, now);
+  try { localStorage.setItem('etf-closes-v1-' + item.code, JSON.stringify(rows.map(r => [r[0],r[1]]))); } catch {}
+  item.hasSampledClose = true;
+  const container = document.getElementById('chart-' + item.code);
+  const chart = container ? echarts.getInstanceByDom(container) : null;
+  if (chart) renderChart(item, buildHistoricalReferenceRows(rows, item.officialNavRows || []));
+  return true;
 }
 function readIopvArchive(item) {
   try {
@@ -144,20 +123,13 @@ function recordIopv(item, quote) {
 }
 async function loadHistoryAndRender(item) {
   renderStaticHistory(item);
-  const [live, officialNavRows] = await Promise.all([loadTencentCloseHistory(item), loadOfficialNavHistory(item)]);
-  const merged = combineHistory(item, live.rows);
-  if (live.rows.length) {
-    try { localStorage.setItem('etf-closes-v1-' + item.code, JSON.stringify(merged.map(r => [r[0],r[1]]))); } catch {}
-  }
-  const rows = buildHistoricalReferenceRows(merged, officialNavRows);
-  const priceSource = live.rows.length ? '腾讯已收盘行情' : '收盘缓存';
+  const officialNavRows = await loadOfficialNavHistory(item);
+  item.officialNavRows = officialNavRows;
+  const rows = buildHistoricalReferenceRows(combineHistory(item, []), officialNavRows);
+  const priceSource = item.hasSampledClose ? '已核验收盘缓存 / 行情实采' : '已核验收盘缓存';
   const navDate = officialNavRows.length ? officialNavRows.at(-1)[0] : '';
   item.historySource = item.isUsStock ? priceSource : priceSource +
     (navDate ? ` / 东财已公布净值截至${navDate}（未披露日沿用参考）` : ' / 历史参考溢价缓存');
   renderChart(item, rows);
-  if (live.extended) {
-    item.extSnapshot = live.extended;
-    if (typeof liveData !== 'undefined' && liveData[item.code]) applyLive(item, liveData[item.code]);
-  }
 }
-Object.assign(window, { recordIopv, loadHistoryAndRender });
+Object.assign(window, { recordIopv, recordCompletedClose, loadHistoryAndRender });
