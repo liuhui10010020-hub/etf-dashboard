@@ -82,8 +82,10 @@ function createQuoteCandidate(p, raw, source, now = new Date()) {
 }
 function pickBestQuote(...candidates) {
   const usable = candidates.filter(c => c && c.valid);
-  return usable.find(c => !c.stale) ||
-    usable.sort((a,b) => (b.quoteTime || '').localeCompare(a.quoteTime || ''))[0] || null;
+  // Prefer the newest valid feed, not an older response merely because it is listed first.
+  usable.sort((a,b) => Number(a.stale) - Number(b.stale) ||
+    (b.quoteTime || '').localeCompare(a.quoteTime || ''));
+  return usable[0] || null;
 }
 function weightedBuyPremium(trades) {
   const total = trades.reduce((sum, t) => sum + t.amt, 0);

@@ -152,7 +152,7 @@
 
   <div class="note">
     <strong>数据说明：</strong>
-    ① <b>现价 / 涨跌幅</b>：东方财富 push2 与腾讯财经交叉校验，源时间在卡片标注；A股交易时段 9:30–11:30、13:00–15:00，每30秒刷新。QQQ 使用美东时间标注最新报价。<br>
+    ① <b>现价 / 涨跌幅</b>：东方财富 push2 与腾讯财经双源校验时间及有效性，择新报价，源时间在卡片标注；A股交易时段 9:30–11:30、13:00–15:00，每30秒刷新。QQQ 使用美东时间标注最新报价。<br>
     ② <b>实时估值(IOPV)</b>：采用腾讯财经 IOPV 字段；该字段不提供独立估值时间，卡片时间为同行情响应的报价时间。IOPV 无效或超时则使用带日期的参考值，不冒充实时估值。<br>
     ③ <b>实时溢价率</b> = 有效现价 / 实时IOPV − 1；任一输入非实时则标为“参考溢价率”。<b>持仓盈亏</b> = 现价×份额−买入金额；表内折算成本 = 买入金额/份额，原始记录成交价保留在单元格提示中；<b>加权买入溢价率</b>使用原始买入溢价率按买入金额加权，不随今日IOPV变化。<br>
     ④ 无有效成交、报价超时或接口失败时显式标注参考状态；今开 / 最高 / 最低缺失保留“未提供”，不填0，也不捏造为最新价。汇总中如含参考报价，会标注“含参考报价估算”；缺任一持仓价则不显示不完整的总盈亏。<br>
@@ -215,10 +215,10 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
 (function(){
   try{
     const patch = {
-      "513390": [["2026-11-05", 2.410, 20.554249412235514], ["2026-11-06", 2.332, 15.080931701539658], ["2026-11-09", 2.325, 10.946745562130179], ["2026-11-10", 2.409, 15.678271308523396], ["2026-11-11", 2.442, 17.262905162064833], ["2026-11-12", 2.424, 16.39855942376951]],
-      "159655": [["2026-11-05", 1.998, 11.857574739670817], ["2026-11-06", 1.936, 8.03571428571428], ["2026-11-09", 1.949, 6.212534059945507], ["2026-11-10", 1.995, 9.225294278675067], ["2026-11-11", 2.001, 9.553791404325196], ["2026-11-12", 1.999, 9.444292362441843]],
-      "159501": [["2026-11-05", 2.132, 27.420511594549367], ["2026-11-06", 2.069, 21.98573197335063], ["2026-11-09", 2.055, 17.154096117667184], ["2026-11-10", 2.110, 21.048706327806777], ["2026-11-11", 2.123, 21.79450404451839], ["2026-11-12", 2.107, 20.8765991624118]],
-      "QQQ": [["2026-11-09", 679.350, null], ["2026-11-10", 674.760, null], ["2026-11-11", 690.380, null]]
+      "513390": [["2026-11-05", 2.410, 20.554249412235514], ["2026-11-06", 2.332, 15.080931701539658], ["2026-11-09", 2.325, 10.946745562130179], ["2026-11-10", 2.409, 15.678271308523396], ["2026-11-11", 2.442, 14.615601239087606], ["2026-11-12", 2.424, 13.770768797521837], ["2026-11-13", 2.435, 14.287055289589802]],
+      "159655": [["2026-11-05", 1.998, 11.857574739670817], ["2026-11-06", 1.936, 8.03571428571428], ["2026-11-09", 1.949, 6.212534059945507], ["2026-11-10", 1.995, 9.225294278675067], ["2026-11-11", 2.001, 8.115409552625884], ["2026-11-12", 1.999, 8.007348173762697], ["2026-11-13", 2.004, 8.277501620920692]],
+      "159501": [["2026-11-05", 2.132, 27.420511594549367], ["2026-11-06", 2.069, 21.98573197335063], ["2026-11-09", 2.055, 17.154096117667184], ["2026-11-10", 2.110, 21.048706327806777], ["2026-11-11", 2.123, 19.035604149144937], ["2026-11-12", 2.107, 18.13849172974489], ["2026-11-13", 2.107, 18.13849172974489]],
+      "QQQ": [["2026-11-09", 679.350, null], ["2026-11-10", 674.760, null], ["2026-11-11", 690.380, null], ["2026-11-12", 688.170, null]]
     };
 
     Object.keys(patch).forEach(code => {
@@ -237,8 +237,9 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   }
 })();
 </script>
-<script src="quote-integrity.js"></script>
-<script src="history-integrity.js?v=20261112-close2"></script>
+<script src="quote-integrity.js?v=20261113-close"></script>
+<script src="history-integrity.js?v=20261113-close"></script>
+<script src="extended-quotes.js?v=20261113-close"></script>
 <script>
 window.onerror = function(msg, url, line, _col, _err) { console.error("Global JS Error:", msg, "at line", line); };
 /* global STATIC_HIST_DATA, echarts */
@@ -518,8 +519,9 @@ function applyLive(p, d){
     const extPxEl = $(`#extpx-${c}`);
     const extCgEl = $(`#extcg-${c}`);
     if (extPxEl && extCgEl) {
-      const snapshot = p.extSnapshot || null;
-      const extPrice = snapshot ? snapshot.price : d.extPrice;
+      // Extended-session data must have its own timestamp and follow this regular close.
+      const snapshot = p.extSnapshot && p.extSnapshot.time >= d.quoteTime ? p.extSnapshot : null;
+      const extPrice = snapshot ? snapshot.price : null;
       const extChg = validPositive(extPrice) ? (extPrice / d.f43 - 1) * 100 : null;
       if (validPositive(extPrice)) {
         extPxEl.textContent = fmtMetric(extPrice, 3) + (snapshot
@@ -637,7 +639,7 @@ function fetchFallbackData(p, cb) {
 
 // 移除 fetchNavFromPingzhong，改用腾讯接口获取实时 IOPV
 
-function fetchTencent(items, cb) {
+function fetchTencentQuotes(items, cb) {
   if(!items.length) return cb({});
   const codes = items.map(p => (p.market==='SH'?'sh':p.market==='SZ'?'sz':'us') + p.code).join(',');
   const script = document.createElement('script');
@@ -663,8 +665,8 @@ function fetchTencent(items, cb) {
             f45: parseFloat(pts[34]),
             f170: parseFloat(pts[32]),
             quoteTime: pts[30],
-            extPrice: pts.length > 67 ? parseFloat(pts[67]) : null,
-            iopv: pts.length > 78 ? parseFloat(pts[78]) : null
+            extPrice: null, // Field 67 is not a timestamped extended-session quote.
+            iopv: !p.isUsStock && pts.length > 78 ? parseFloat(pts[78]) : null
           };
         }
       }
@@ -826,7 +828,7 @@ function renderChart(item, data) {
       axisPointer: { type: 'cross' },
       valueFormatter: (value) => (typeof value === 'number' ? value.toFixed(3) : value)
     },
-    legend: { data: item.isUsStock ? ['收盘价'] : ['收盘价', '历史参考溢价率(%)', ...(observed.length ? ['实采IOPV溢价率(%)'] : [])], textStyle: { color: '#8b97a7' }, top: 0, right: 0 },
+    legend: { data: item.isUsStock ? ['收盘价'] : ['收盘价', '历史参考溢价率(%)', ...(observed.length ? ['每日最后实采IOPV溢价率(%)'] : [])], textStyle: { color: '#8b97a7' }, top: 0, right: 0 },
     grid: { left: 56, right: 96, top: 80, bottom: 64, containLabel: true },
     xAxis: { type: 'category', data: dates, axisLine: { lineStyle: { color: '#1f2733' } },
       axisLabel: { color: '#8b97a7', hideOverlap: true, showMaxLabel: false,
@@ -891,7 +893,7 @@ function renderChart(item, data) {
         }
       },
       ...(observed.length ? [{
-        name: '实采IOPV溢价率(%)',
+        name: '每日最后实采IOPV溢价率(%)',
         type: 'line',
         yAxisIndex: 1,
         data: iopvPrems,
