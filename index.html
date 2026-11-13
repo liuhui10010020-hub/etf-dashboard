@@ -518,9 +518,7 @@ function applyLive(p, d){
     const extPxEl = $(`#extpx-${c}`);
     const extCgEl = $(`#extcg-${c}`);
     if (extPxEl && extCgEl) {
-      // Tencent K-line pandata snapshot verified on 2026-11-12; display its actual historical time.
-      const snapshot = p.extSnapshot || (p.code === 'QQQ'
-        ? {price:684.000, time:'2026-11-11 20:01:00', tag:'after'} : null);
+      const snapshot = p.extSnapshot || null;
       const extPrice = snapshot ? snapshot.price : d.extPrice;
       const extChg = validPositive(extPrice) ? (extPrice / d.f43 - 1) * 100 : null;
       if (validPositive(extPrice)) {
