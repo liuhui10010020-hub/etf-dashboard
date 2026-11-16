@@ -1,5 +1,5 @@
 /* Completed closes, published-NAV references and timestamped IOPV observations remain separate. */
-/* global getMarketDate, validPositive, getStaticHistory, echarts, renderChart, renderStaticHistory, document, window, localStorage */
+/* global getMarketDate, validPositive, getStaticHistory, getLatestStaticNavSnapshot, echarts, renderChart, renderStaticHistory, document, window, localStorage */
 /* exported recordIopv, loadHistoryAndRender */
 function sanitizeHistory(item, raw, now = new Date()) {
   const date = getMarketDate(item, now);
@@ -16,11 +16,11 @@ function sanitizeHistory(item, raw, now = new Date()) {
 }
 function combineHistory(item, rows, now = new Date()) {
   const latestCloses = {
-    '513390': [['2026-11-05',2.410],['2026-11-06',2.332],['2026-11-09',2.325],['2026-11-10',2.409],['2026-11-11',2.442],['2026-11-12',2.424],['2026-11-13',2.435]],
-    '159655': [['2026-11-05',1.998],['2026-11-06',1.936],['2026-11-09',1.949],['2026-11-10',1.995],['2026-11-11',2.001],['2026-11-12',1.999],['2026-11-13',2.004]],
-    '159501': [['2026-11-05',2.132],['2026-11-06',2.069],['2026-11-09',2.055],['2026-11-10',2.110],['2026-11-11',2.123],['2026-11-12',2.107],['2026-11-13',2.107]],
+    '513390': [['2026-11-05',2.410],['2026-11-06',2.332],['2026-11-09',2.325],['2026-11-10',2.409],['2026-11-11',2.442],['2026-11-12',2.424],['2026-11-13',2.435],['2026-11-16',2.380]],
+    '159655': [['2026-11-05',1.998],['2026-11-06',1.936],['2026-11-09',1.949],['2026-11-10',1.995],['2026-11-11',2.001],['2026-11-12',1.999],['2026-11-13',2.004],['2026-11-16',1.970]],
+    '159501': [['2026-11-05',2.132],['2026-11-06',2.069],['2026-11-09',2.055],['2026-11-10',2.110],['2026-11-11',2.123],['2026-11-12',2.107],['2026-11-13',2.107],['2026-11-16',2.070]],
     'QQQ': [['2026-11-04',691.950],['2026-11-05',647.050],['2026-11-06',656.100],['2026-11-09',679.350],['2026-11-10',674.760],['2026-11-11',690.380],['2026-11-12',688.170],['2026-11-13',679.890]]
-  }; // Tencent completed-session closes verified 2026-11-13; these are not IOPV.
+  }; // Tencent completed-session closes verified 2026-11-16; these are not IOPV.
   const map = new Map(sanitizeHistory(item, getStaticHistory(item), now).map(r => [r[0], r]));
   const mergeRow = row => {
     const old = map.get(row[0]);
@@ -100,18 +100,30 @@ function recordCompletedClose(item, quote, now = new Date()) {
   if (chart) renderChart(item, buildHistoricalReferenceRows(rows, item.officialNavRows || []));
   return true;
 }
-function readIopvArchive(item) {
-  try {
-    const rows = JSON.parse(localStorage.getItem('etf-iopv-v1-' + item.code) || '[]');
-    return Array.isArray(rows) ? rows.filter(r => Array.isArray(r) &&
-      /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(r[0]) &&
-      validPositive(r[1]) && validPositive(r[2])).slice(-1000) : [];
-  } catch { return []; }
+function readIopvArchive(item, now = new Date()) {
+  // Actual Tencent responses captured during the 11-16 close patrol, not backfilled NAV.
+  const verified = {
+    '513390': [['2026-11-16 15:10:20', 2.380, 2.0973]],
+    '159655': [['2026-11-16 15:10:15', 1.970, 1.8370]],
+    '159501': [['2026-11-16 15:10:00', 2.070, 1.7555]]
+  };
+  let local = [];
+  try { local = JSON.parse(localStorage.getItem('etf-iopv-v1-' + item.code) || '[]'); } catch {}
+  const merged = [...(verified[item.code] || []), ...(Array.isArray(local) ? local : [])];
+  const rows = merged.filter(r => Array.isArray(r) &&
+    /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(r[0]) &&
+    Date.parse(r[0].replace(' ', 'T') + '+08:00') <= now.getTime() &&
+    validPositive(r[1]) && validPositive(r[2]));
+  return Array.from(new Map(rows.map(r => [r[0], r])).values())
+    .sort((a,b) => a[0].localeCompare(b[0])).slice(-1000);
 }
 function recordIopv(item, quote) {
   if (item.isUsStock || quote.stale || !item.navIsLatest || !quote.quoteTime || !validPositive(item.nav)) return;
   const stamp = quote.quoteTime.replace(' ', 'T') + '+08:00';
-  if (Math.abs(Date.parse(stamp) - Date.now()) > 180000) return;
+  const navStamp = item.navFallbackDate || '';
+  if (navStamp.slice(0,10) !== quote.quoteTime.slice(0,10) ||
+      Math.abs(Date.parse(navStamp.replace(' ', 'T') + '+08:00') - Date.parse(stamp)) > 180000 ||
+      Math.abs(Date.parse(stamp) - Date.now()) > 180000) return;
   const rows = readIopvArchive(item);
   const row = [quote.quoteTime, quote.f43, item.nav];
   const last = rows[rows.length - 1];
@@ -124,7 +136,9 @@ function recordIopv(item, quote) {
 }
 async function loadHistoryAndRender(item) {
   renderStaticHistory(item);
-  const officialNavRows = await loadOfficialNavHistory(item);
+  const liveNavRows = await loadOfficialNavHistory(item);
+  const cached = typeof getLatestStaticNavSnapshot === 'function' ? getLatestStaticNavSnapshot(item.code) : null;
+  const officialNavRows = liveNavRows.length ? liveNavRows : cached ? [[cached.date, cached.nav]] : [];
   item.officialNavRows = officialNavRows;
   const rows = buildHistoricalReferenceRows(combineHistory(item, []), officialNavRows);
   const priceSource = item.hasSampledClose ? '已核验收盘缓存 / 行情实采' : '已核验收盘缓存';

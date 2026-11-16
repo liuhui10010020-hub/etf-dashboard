@@ -53,7 +53,7 @@ function isIopvCurrent(p, iopv, quoteTime, now = new Date()) {
   const quoteMinutes = Number(quoteTime.slice(11,13)) * 60 + Number(quoteTime.slice(14,16));
   // Retain only this session's lunch/closing estimate, never a multi-day IOPV as realtime.
   return (minutes >= 690 && minutes < 780 && quoteMinutes >= 687 && quoteMinutes <= minutes + 2) ||
-    (minutes >= 900 && quoteMinutes >= 897 && quoteMinutes <= minutes + 2);
+    (minutes >= 900 && quoteMinutes >= 897 && quoteMinutes <= minutes + 2 && age <= 1800000);
 }
 function createQuoteCandidate(p, raw, source, now = new Date()) {
   if (!raw) return null;
