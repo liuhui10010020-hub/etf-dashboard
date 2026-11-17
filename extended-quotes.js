@@ -49,7 +49,8 @@ function getExtendedSnapshot(item, regular, now = new Date()) {
   const latestAllowed = getQuoteStamp(item, {f86:(now.getTime() + 120000) / 1000});
   if (date > getMarketDate(item, now) || snapshot.time > latestAllowed || snapshot.time < regular.quoteTime) return null;
   const minutes = Number(snapshot.time.slice(11, 13)) * 60 + Number(snapshot.time.slice(14, 16));
-  if (snapshot.tag === 'after' && date === regularDate && minutes >= 960 && minutes <= 1210) return snapshot;
+  // Tencent keeps refreshing the after-hours print past 20:00 ET, so accept any time from the close to end of day.
+  if (snapshot.tag === 'after' && date === regularDate && minutes >= 960 && minutes <= 1439) return snapshot;
   if (snapshot.tag === 'before' && date > regularDate && date === getMarketDate(item, now) &&
       minutes >= 240 && minutes < 570) return snapshot;
   return null;

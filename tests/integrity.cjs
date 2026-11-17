@@ -51,6 +51,10 @@ assert.equal(run('createQuoteCandidate(us,{...usRaw,quoteTime:"20261117160001"},
 run('us.extSnapshot={price:662.37,time:"2026-11-16 20:01:00",tag:"after"}');
 assert.equal(run('getExtendedSnapshot(us,regular,now).price'), 662.37);
 assert.equal(((662.37/661.75-1)*100).toFixed(2), '0.09');
+run('us.extSnapshot={price:662.37,time:"2026-11-16 20:15:00",tag:"after"}');
+assert.equal(run('getExtendedSnapshot(us,regular,now).price'), 662.37);
+run('us.extSnapshot={price:662.37,time:"2026-11-16 15:59:00",tag:"after"}');
+assert.equal(run('getExtendedSnapshot(us,regular,now)'), null);
 run('us.extSnapshot={price:684,time:"2026-11-11 20:01:00",tag:"after"}');
 assert.equal(run('getExtendedSnapshot(us,regular,now)'), null);
 // Cold browser: all completed histories are present without any localStorage.
@@ -98,7 +102,7 @@ assert.equal((2.38*202100+1.958*74500-650099).toFixed(0),'-23230');
 assert.equal(run('weightedBuyPremium([{amt:150000,prem:9.81},{amt:49500,prem:9.97},{amt:100000,prem:10.47},{amt:100000,prem:9.38},{amt:100000,prem:9.59}]).toFixed(2)'), '9.83');
 assert(html.includes('--（${unavailable}）'));
 assert(html.includes('typeof getExtendedSnapshot'));
-assert.equal((html.match(/src="(?:quote-integrity|history-integrity|extended-quotes)\.js\?v=20261117-qqqm"/g)||[]).length,3);
+assert.equal((html.match(/src="(?:quote-integrity|history-integrity|extended-quotes)\.js\?v=20261117-qqqm2"/g)||[]).length,3);
 assert(!html.includes('price:684.000'));
 assert(html.includes("code:'QQQM', secid:'105.QQQM'") && !html.includes("code:'QQQ',"));
 assert(html.includes('--up:#ef4444') && html.includes('--down:#22c55e'));
