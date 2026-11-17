@@ -58,26 +58,35 @@ function isIopvCurrent(p, iopv, quoteTime, now = new Date()) {
 function createQuoteCandidate(p, raw, source, now = new Date()) {
   if (!raw) return null;
   const pre = toNum(raw.f60), actual = toNum(raw.f43);
-  const price = validPositive(actual) ? actual : pre;
   const open = toNum(raw.f46), high = toNum(raw.f44), low = toNum(raw.f45);
   const volume = toNum(raw.f47 ?? raw.volume), amount = toNum(raw.f48 ?? raw.amount);
   const quoteTime = getQuoteStamp(p, raw), quoteDate = quoteTime.slice(0,10);
+  // Tencent updates its response timestamp during suspension; it is not a trade time.
+  const suspended = !p.isUsStock && String(raw.status || '').trim().toUpperCase() === 'S' &&
+    quoteDate === getMarketDate(p, now);
+  const price = validPositive(actual) ? actual : pre;
   const noTrades = !validPositive(open) && !validPositive(high) && !validPositive(low) &&
     !validPositive(volume) && !validPositive(amount);
   const missingPrice = !validPositive(actual);
-  let stale = missingPrice || source === 'kline_fallback';
+  let stale = suspended || missingPrice || source === 'kline_fallback';
   if (!p.isUsStock) {
     stale = stale || noTrades || !quoteTime || quoteDate !== getMarketDate(p, now);
     if (isChinaTradingTime(now) && quoteDate) {
       const age = now.getTime() - Date.parse(quoteTime.replace(' ', 'T') + '+08:00');
-      stale = stale || quoteDate !== getMarketDate(p, now) || age > 180000 || age < -120000;
+      stale = stale || quoteDate !== getMarketDate(p, now) || !Number.isFinite(age) || age > 180000 || age < -120000;
     }
+  } else {
+    // Allow weekends/one-day closures, but never label multi-day or undated prices as latest.
+    const gap = (Date.parse(getMarketDate(p, now)) - Date.parse(quoteDate)) / 86400000;
+    const latestAllowed = getQuoteStamp(p, {f86:(now.getTime() + 120000) / 1000});
+    stale = stale || !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(quoteTime) ||
+      !Number.isFinite(gap) || gap < 0 || gap > 3 || quoteTime > latestAllowed;
   }
   const chg = validPositive(actual) && validPositive(pre) ? (actual / pre - 1) * 100 : null;
   const extPrice = toNum(raw.f71 ?? raw.extPrice);
   const extChg = validPositive(extPrice) && validPositive(price) ? (extPrice / price - 1) * 100 : null;
   return { f43: price, f60: pre, f46: open, f44: high, f45: low, f170: chg,
-    f47: volume, f48: amount, extPrice, extChg, source, stale, noTrades, missingPrice, quoteTime,
+    f47: volume, f48: amount, extPrice, extChg, source, stale, suspended, noTrades, missingPrice, quoteTime,
     valid: validPositive(price), observedAt: now.getTime() };
 }
 function pickBestQuote(...candidates) {
@@ -93,7 +102,10 @@ function weightedBuyPremium(trades) {
 }
 function tradeProfit(trade, price) { return price * trade.vol - trade.amt; }
 function quoteNote(p, d) {
-  const time = d.quoteTime ? ` · ${d.quoteTime}${p.isUsStock ? ' 美东' : ' 北京时间'}` : ' · 源时间未提供';
+  if (d.suspended) return '停牌中（腾讯状态 S） · 不可成交的参考报价' +
+    (d.quoteTime ? ` · 接口响应 ${d.quoteTime} 北京时间（非成交时间）` : '');
+  const time = d.quoteTime ? (d.quoteTime.length === 10 ? ` · ${d.quoteTime}（源仅提供日期）` :
+    ` · ${d.quoteTime}${p.isUsStock ? ' 美东' : ' 北京时间'}`) : ' · 源时间未提供';
   if (d.stale) {
     const label = d.noTrades || d.missingPrice ? '昨收兜底 · 暂无有效成交' : '历史报价参考 · 行情待更新';
     return label + time;

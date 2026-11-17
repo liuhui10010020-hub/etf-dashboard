@@ -153,7 +153,7 @@
   <div class="note">
     <strong>数据说明：</strong>
     ① <b>现价 / 涨跌幅</b>：东方财富 push2 与腾讯财经双源校验时间及有效性，择新报价，源时间在卡片标注；A股交易时段 9:30–11:30、13:00–15:00，每30秒刷新。QQQ 使用美东时间标注最新报价。<br>
-    ② <b>实时估值(IOPV)</b>：采用腾讯财经 IOPV 字段；该字段不提供独立估值时间，卡片时间为同行情响应的报价时间。IOPV 无效或超时则使用带日期的已公布净值参考值，收盘报价响应超过30分钟不再标为实时，不冒充实时估值。<br>
+    ② <b>实时估值(IOPV)</b>：采用腾讯财经 IOPV 字段；该字段不提供独立估值时间，卡片标注同行情响应的时间。停牌时该时间是接口响应时间，不是成交时间；即使IOPV有效，停牌参考价计算的溢价仍标为“参考溢价率”，不代表可成交价格。IOPV 无效或超时则使用带日期的已公布净值参考值，收盘报价响应超过30分钟不再标为实时，不冒充实时估值。<br>
     ③ <b>实时溢价率</b> = 有效现价 / 实时IOPV − 1；任一输入非实时则标为“参考溢价率”。<b>持仓盈亏</b> = 现价×份额−买入金额；表内折算成本 = 买入金额/份额，原始记录成交价保留在单元格提示中；<b>加权买入溢价率</b>使用原始买入溢价率按买入金额加权，不随今日IOPV变化。<br>
     ④ 无有效成交、报价超时或接口失败时显式标注参考状态；今开 / 最高 / 最低缺失保留“未提供”，不填0，也不捏造为最新价。汇总中如含参考报价，会标注“含参考报价估算”；缺任一持仓价则不显示不完整的总盈亏。<br>
     ⑤ <b>图表口径</b>：蓝线只显示已完成交易日的收盘价，日期与缓存来源明确标注；黄线为历史收盘价相对东方财富已公布基金净值计算的<b>历史参考溢价率</b>，若QDII净值尚未披露，则沿用最近一期已公布净值作参考并在来源中标注，覆盖完整历史区间但不冒充实时IOPV；紫色点线仅记录已核验实采及当前浏览器实采的有效报价与实时IOPV溢价，不补造未采集日期。QQQ 是美国上市ETF，不套用A股QDII的IOPV溢价口径。<br>
@@ -215,10 +215,10 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
 (function(){
   try{
     const patch = {
-      "513390": [["2026-11-05", 2.410, 20.554249412235514], ["2026-11-06", 2.332, 15.080931701539658], ["2026-11-09", 2.325, 10.946745562130179], ["2026-11-10", 2.409, 15.678271308523396], ["2026-11-11", 2.442, 14.615601239087606], ["2026-11-12", 2.424, 13.770768797521837], ["2026-11-13", 2.435, 14.287055289589802], ["2026-11-16", 2.380, null]],
-      "159655": [["2026-11-05", 1.998, 11.857574739670817], ["2026-11-06", 1.936, 8.03571428571428], ["2026-11-09", 1.949, 6.212534059945507], ["2026-11-10", 1.995, 9.225294278675067], ["2026-11-11", 2.001, 8.115409552625884], ["2026-11-12", 1.999, 8.007348173762697], ["2026-11-13", 2.004, 8.277501620920692], ["2026-11-16", 1.970, null]],
-      "159501": [["2026-11-05", 2.132, 27.420511594549367], ["2026-11-06", 2.069, 21.98573197335063], ["2026-11-09", 2.055, 17.154096117667184], ["2026-11-10", 2.110, 21.048706327806777], ["2026-11-11", 2.123, 19.035604149144937], ["2026-11-12", 2.107, 18.13849172974489], ["2026-11-13", 2.107, 18.13849172974489], ["2026-11-16", 2.070, null]],
-      "QQQ": [["2026-11-09", 679.350, null], ["2026-11-10", 674.760, null], ["2026-11-11", 690.380, null], ["2026-11-12", 688.170, null], ["2026-11-13", 679.890, null]]
+      "513390": [["2026-11-05", 2.410, 20.554249412235514], ["2026-11-06", 2.332, 15.080931701539658], ["2026-11-09", 2.325, 10.946745562130179], ["2026-11-10", 2.409, 15.678271308523396], ["2026-11-11", 2.442, 14.615601239087606], ["2026-11-12", 2.424, 14.135040964309242], ["2026-11-13", 2.435, 16.096119004481736], ["2026-11-16", 2.380, null]],
+      "159655": [["2026-11-05", 1.998, 11.857574739670817], ["2026-11-06", 1.936, 8.03571428571428], ["2026-11-09", 1.949, 6.212534059945507], ["2026-11-10", 1.995, 9.225294278675067], ["2026-11-11", 2.001, 8.115409552625884], ["2026-11-12", 1.999, 8.417398850200675], ["2026-11-13", 2.004, 9.090909090909083], ["2026-11-16", 1.970, null]],
+      "159501": [["2026-11-05", 2.132, 27.420511594549367], ["2026-11-06", 2.069, 21.98573197335063], ["2026-11-09", 2.055, 17.154096117667184], ["2026-11-10", 2.110, 21.048706327806777], ["2026-11-11", 2.123, 19.035604149144937], ["2026-11-12", 2.107, 18.517268534143327], ["2026-11-13", 2.107, 20.022785531187704], ["2026-11-16", 2.070, null]],
+      "QQQ": [["2026-11-09", 679.350, null], ["2026-11-10", 674.760, null], ["2026-11-11", 690.380, null], ["2026-11-12", 688.170, null], ["2026-11-13", 679.890, null], ["2026-11-16", 661.750, null]]
     };
 
     Object.keys(patch).forEach(code => {
@@ -237,9 +237,9 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   }
 })();
 </script>
-<script src="quote-integrity.js?v=20261116-close"></script>
-<script src="history-integrity.js?v=20261116-close"></script>
-<script src="extended-quotes.js?v=20261116-close"></script>
+<script src="quote-integrity.js?v=20261117-morning"></script>
+<script src="history-integrity.js?v=20261117-morning"></script>
+<script src="extended-quotes.js?v=20261117-morning"></script>
 <script>
 window.onerror = function(msg, url, line, _col, _err) { console.error("Global JS Error:", msg, "at line", line); };
 /* global STATIC_HIST_DATA, echarts */
@@ -294,11 +294,11 @@ PORTFOLIO.forEach(p=>{
   }
 });
 
-// Published NAV cache verified from Eastmoney on 2026-11-16. Never substitute IOPV.
+// Published NAV cache verified from Eastmoney on 2026-11-17. Never substitute IOPV.
 const PUBLISHED_NAV_CACHE = {
-  '513390': {date:'2026-11-12', nav:2.1238},
-  '159655': {date:'2026-11-12', nav:1.8438},
-  '159501': {date:'2026-11-12', nav:1.7778}
+  '513390': {date:'2026-11-13', nav:2.0974},
+  '159655': {date:'2026-11-13', nav:1.8370},
+  '159501': {date:'2026-11-13', nav:1.7555}
 };
 function getLatestStaticNavSnapshot(code){
   if(PUBLISHED_NAV_CACHE[code]) return PUBLISHED_NAV_CACHE[code];
@@ -484,7 +484,8 @@ function applyLive(p, d){
   const pxEl=$(`#px-${c}`), cgEl=$(`#cg-${c}`);
   pxEl.textContent=fmt(d.f43,3); pxEl.classList.remove('skel');
   if(d.stale){
-    cgEl.textContent = d.noTrades || d.missingPrice ? '昨收参考 · 无有效成交' : '历史报价参考';
+    cgEl.textContent = d.suspended ? '停牌中 · 参考报价' :
+      (d.noTrades || d.missingPrice ? '昨收参考 · 无有效成交' : '历史报价参考');
     pxEl.className='price';
     cgEl.className='chg';
   } else {
@@ -497,8 +498,9 @@ function applyLive(p, d){
   const noteEl = $(`#qn-${c}`);
   if(noteEl){ noteEl.textContent = quoteNote(p, d); }
 
-  $(`#op-${c}`).textContent = d.stale ? '--（无成交）' : fmtMetric(d.f46,3);
-  $(`#hl-${c}`).textContent = d.stale ? '-- / --（无成交）' : `${fmtMetric(d.f44,3)} / ${fmtMetric(d.f45,3)}`;
+  const unavailable = d.suspended ? '停牌中' : (d.noTrades || d.missingPrice ? '无成交' : '参考报价');
+  $(`#op-${c}`).textContent = d.stale ? `--（${unavailable}）` : fmtMetric(d.f46,3);
+  $(`#hl-${c}`).textContent = d.stale ? `-- / --（${unavailable}）` : `${fmtMetric(d.f44,3)} / ${fmtMetric(d.f45,3)}`;
   const pcEl=$(`#pc-${c}`); if(pcEl) pcEl.textContent=fmt(d.f60,3);
 
   const prLabelEl=$(`#prl-${c}`);
@@ -527,7 +529,7 @@ function applyLive(p, d){
     const extCgEl = $(`#extcg-${c}`);
     if (extPxEl && extCgEl) {
       // Only use the independently timestamped, matching extended-session response.
-      const snapshot = getExtendedSnapshot(p, d);
+      const snapshot = typeof getExtendedSnapshot === 'function' ? getExtendedSnapshot(p, d) : null;
       const extPrice = snapshot ? snapshot.price : null;
       const extChg = validPositive(extPrice) ? (extPrice / d.f43 - 1) * 100 : null;
       if (validPositive(extPrice)) {
@@ -672,6 +674,7 @@ function fetchTencentQuotes(items, cb) {
             f45: parseFloat(pts[34]),
             f170: parseFloat(pts[32]),
             quoteTime: pts[30],
+            status: String(pts[40] || '').trim(),
             extPrice: null, // Field 67 is not a timestamped extended-session quote.
             iopv: !p.isUsStock && pts.length > 78 ? parseFloat(pts[78]) : null
           };
@@ -714,8 +717,12 @@ function fetchAll(){
 
     PORTFOLIO.forEach(p => {
       emJsonp(p.secid, FIELDS, data => {
-        const emQuote = createQuoteCandidate(p, data && data.data, 'eastmoney');
-        const txQuote = createQuoteCandidate(p, txData[p.code], 'tencent');
+        const txRaw = txData[p.code];
+        const txQuote = createQuoteCandidate(p, txRaw, 'tencent');
+        const emRaw = data && data.data;
+        // A newer response from another feed must not override a confirmed suspension.
+        const emQuote = createQuoteCandidate(p,
+          emRaw && txQuote && txQuote.suspended ? {...emRaw, status:'S'} : emRaw, 'eastmoney');
         const quote = pickBestQuote(emQuote, txQuote);
         if(quote) {
           applyLive(p, quote);
