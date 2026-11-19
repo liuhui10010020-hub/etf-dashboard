@@ -123,7 +123,8 @@ function readIopvArchive(item, now = new Date()) {
     .sort((a,b) => a[0].localeCompare(b[0])).slice(-1000);
 }
 function recordIopv(item, quote) {
-  if (item.isUsStock || quote.stale || !item.navIsLatest || !quote.quoteTime || !validPositive(item.nav)) return;
+  if (item.isUsStock || quote.stale || quote.suspended || quote.noTrades || quote.missingPrice ||
+      !item.navIsLatest || !quote.quoteTime || !validPositive(item.nav)) return;
   const stamp = quote.quoteTime.replace(' ', 'T') + '+08:00';
   const navStamp = item.navFallbackDate || '';
   if (navStamp.slice(0,10) !== quote.quoteTime.slice(0,10) ||

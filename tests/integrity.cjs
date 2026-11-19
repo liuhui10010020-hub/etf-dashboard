@@ -102,7 +102,7 @@ assert.equal((2.38*202100+1.958*74500-650099).toFixed(0),'-23230');
 assert.equal(run('weightedBuyPremium([{amt:150000,prem:9.81},{amt:49500,prem:9.97},{amt:100000,prem:10.47},{amt:100000,prem:9.38},{amt:100000,prem:9.59}]).toFixed(2)'), '9.83');
 assert(html.includes('--（${unavailable}）'));
 assert(html.includes('typeof getExtendedSnapshot'));
-assert.equal((html.match(/src="(?:quote-integrity|history-integrity|extended-quotes)\.js\?v=20261119-morning"/g)||[]).length,3);
+assert.equal((html.match(/src="(?:quote-integrity|history-integrity|extended-quotes)\.js\?v=20261119-morning2"/g)||[]).length,3);
 assert(!html.includes('price:684.000'));
 assert(html.includes("code:'QQQM', secid:'105.QQQM'") && !html.includes("code:'QQQ',"));
 assert(html.includes('--up:#ef4444') && html.includes('--down:#22c55e'));
@@ -137,6 +137,12 @@ for (const [code,price,count,iopv,nav16,nav17] of [
   assert.equal(navCache[code].nav,nav17);
 }
 assert.equal(storage.size,0);
+// Non-tradable reference prices must not be archived as a live IOPV premium.
+const liveStamp = new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).format(new Date());
+for (const flag of ['suspended','noTrades','missingPrice']) {
+  run(`recordIopv({code:'159655',nav:1.7778,navIsLatest:true,navFallbackDate:'${liveStamp}'},{f43:1.944,quoteTime:'${liveStamp}',${flag}:true})`);
+  assert.equal(storage.size,0);
+}
 assert.equal(run('recordCompletedClose(cn,{f43:2.369,quoteTime:"2026-11-19 15:10:00",suspended:true},new Date("2026-11-19T07:15:00Z"))'),false);
 // A sparse NAV before a price date may be used; later NAVs must never leak backwards.
 const sparse=JSON.parse(run('JSON.stringify(buildHistoricalReferenceRows([["2026-11-13",2,8],["2026-11-16",2.38,null],["2026-11-18",2.369,null]],[["2026-11-17",2.0261],["2026-11-15",2.0411]]))'));
