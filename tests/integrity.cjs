@@ -69,9 +69,9 @@ for (const [code,price,count] of [['513390',2.38,209],['159655',1.97,209],['1595
 }
 assert.equal(run('combineHistory(us,[],new Date("2026-11-16T19:59:00Z")).at(-1)[0]'), '2026-11-13');
 const navCache = vm.runInContext('(' + html.match(/const PUBLISHED_NAV_CACHE = (\{[\s\S]*?\});/)[1] + ')', vm.createContext());
-for (const [code,nav12,nav13] of [['513390',2.1238,2.0974],['159655',1.8438,1.837],['159501',1.7778,1.7555]]) {
-  assert.equal(navCache[code].date,'2026-11-13');
-  assert.equal(navCache[code].nav,nav13);
+for (const [code,nav12,nav13,nav17] of [['513390',2.1238,2.0974,2.0261],['159655',1.8438,1.837,1.7819],['159501',1.7778,1.7555,1.6958]]) {
+  assert.equal(navCache[code].date,'2026-11-17');
+  assert.equal(navCache[code].nav,nav17);
   const rows = JSON.parse(run(`JSON.stringify(getStaticHistory({code:'${code}'}))`));
   for(const [date,nav] of [['2026-11-12',nav12],['2026-11-13',nav13]]) {
     const row=rows.find(r=>r[0]===date);
@@ -102,8 +102,53 @@ assert.equal((2.38*202100+1.958*74500-650099).toFixed(0),'-23230');
 assert.equal(run('weightedBuyPremium([{amt:150000,prem:9.81},{amt:49500,prem:9.97},{amt:100000,prem:10.47},{amt:100000,prem:9.38},{amt:100000,prem:9.59}]).toFixed(2)'), '9.83');
 assert(html.includes('--（${unavailable}）'));
 assert(html.includes('typeof getExtendedSnapshot'));
-assert.equal((html.match(/src="(?:quote-integrity|history-integrity|extended-quotes)\.js\?v=20261117-qqqm2"/g)||[]).length,3);
+assert.equal((html.match(/src="(?:quote-integrity|history-integrity|extended-quotes)\.js\?v=20261119-morning"/g)||[]).length,3);
 assert(!html.includes('price:684.000'));
 assert(html.includes("code:'QQQM', secid:'105.QQQM'") && !html.includes("code:'QQQ',"));
 assert(html.includes('--up:#ef4444') && html.includes('--down:#22c55e'));
-console.log('PASS: inline syntax, suspension/resumption, feed validity, dated US extended quotes, cold-browser closes, published NAV, IOPV and holdings');
+// November 19 cold start: completed closes and actual November 18 IOPV require no browser cache.
+run('var morningNow=new Date("2026-11-19T02:10:00Z")');
+for (const [code,price,count,iopv,nav16,nav17] of [
+  ['513390',2.369,211,2.0261,2.0411,2.0261],
+  ['159655',1.941,211,1.7822,1.8015,1.7819],
+  ['159501',2.048,211,1.6959,1.7083,1.6958],
+  ['QQQM',271.58,222,null,null,null]
+]) {
+  const rows = JSON.parse(run(`JSON.stringify(combineHistory({code:'${code}',isUsStock:${code==='QQQM'}},[],morningNow))`));
+  assert.equal(rows.length,count);
+  assert.equal(rows.at(-1)[0],'2026-11-18');
+  assert.equal(rows.at(-1)[1],price);
+  assert.equal(new Set(rows.map(r=>r[0])).size,count);
+  assert(!rows.some(r=>r[0]==='2026-11-19'));
+  if (code==='QQQM') {
+    assert.equal(rows.at(-2)[1],270.42);
+    assert(rows.every(r=>r[2]===null));
+    continue;
+  }
+  for (const [date,nav] of [['2026-11-16',nav16],['2026-11-17',nav17],['2026-11-18',nav17]]) {
+    const row=rows.find(r=>r[0]===date);
+    assert(Math.abs(row[2]-(row[1]/nav-1)*100)<1e-9);
+  }
+  const samples=JSON.parse(run(`JSON.stringify(readIopvArchive({code:'${code}'},morningNow))`));
+  assert.equal(samples.at(-1)[0].slice(0,10),'2026-11-18');
+  assert.equal(samples.at(-1)[1],price);
+  assert.equal(samples.at(-1)[2],iopv);
+  // Published NAV and IOPV are distinct feeds, not artificially forced to equal.
+  assert.equal(navCache[code].nav,nav17);
+}
+assert.equal(storage.size,0);
+assert.equal(run('recordCompletedClose(cn,{f43:2.369,quoteTime:"2026-11-19 15:10:00",suspended:true},new Date("2026-11-19T07:15:00Z"))'),false);
+// A sparse NAV before a price date may be used; later NAVs must never leak backwards.
+const sparse=JSON.parse(run('JSON.stringify(buildHistoricalReferenceRows([["2026-11-13",2,8],["2026-11-16",2.38,null],["2026-11-18",2.369,null]],[["2026-11-17",2.0261],["2026-11-15",2.0411]]))'));
+assert.equal(sparse[0][2],8);
+assert(Math.abs(sparse[1][2]-(2.38/2.0411-1)*100)<1e-9);
+assert(Math.abs(sparse[2][2]-(2.369/2.0261-1)*100)<1e-9);
+// A script that omits its NAV global cannot silently reuse another fund's data.
+context.document.createElement=()=>({remove(){}});
+context.document.head={appendChild:script=>script.onload()};
+context.window.Data_netWorthTrend=[{x:Date.parse('2026-11-17T00:00:00+08:00'),y:99}];
+run('loadOfficialNavHistory(cn)').then(rows=>{
+  assert.equal(rows.length,0);
+  assert.equal(context.window.Data_netWorthTrend[0].y,99);
+  console.log('PASS: syntax, suspension, quote validity, dated US quotes, cold-browser closes through 11/18, published NAV, as-of premiums, isolated NAV feeds, actual IOPV and holdings');
+}).catch(error=>{console.error(error);process.exitCode=1;});
