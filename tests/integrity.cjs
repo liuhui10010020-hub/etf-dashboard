@@ -102,7 +102,7 @@ assert.equal((2.38*202100+1.958*74500-650099).toFixed(0),'-23230');
 assert.equal(run('weightedBuyPremium([{amt:150000,prem:9.81},{amt:49500,prem:9.97},{amt:100000,prem:10.47},{amt:100000,prem:9.38},{amt:100000,prem:9.59}]).toFixed(2)'), '9.83');
 assert(html.includes('--（${unavailable}）'));
 assert(html.includes('typeof getExtendedSnapshot'));
-assert.equal((html.match(/src="(?:quote-integrity|history-integrity|extended-quotes)\.js\?v=20261119-morning2"/g)||[]).length,3);
+assert.equal((html.match(/src="(?:quote-integrity|history-integrity|extended-quotes)\.js\?v=20261119-close1"/g)||[]).length,3);
 assert(!html.includes('price:684.000'));
 assert(html.includes("code:'QQQM', secid:'105.QQQM'") && !html.includes("code:'QQQ',"));
 assert(html.includes('--up:#ef4444') && html.includes('--down:#22c55e'));
@@ -137,6 +137,26 @@ for (const [code,price,count,iopv,nav16,nav17] of [
   assert.equal(navCache[code].nav,nav17);
 }
 assert.equal(storage.size,0);
+// November 20 morning cold start should carry the verified November 19 A-share close and actual close IOPV.
+run('var nextMorningNow=new Date("2026-11-20T02:10:00Z")');
+for (const [code,price,count,iopv,nav17] of [
+  ['513390',2.384,212,2.0343,2.0261],
+  ['159655',1.941,212,1.7778,1.7819],
+  ['159501',2.056,212,1.7026,1.6958]
+]) {
+  const rows = JSON.parse(run(`JSON.stringify(combineHistory({code:'${code}',isUsStock:false},[],nextMorningNow))`));
+  assert.equal(rows.length,count);
+  assert.equal(rows.at(-1)[0],'2026-11-19');
+  assert.equal(rows.at(-1)[1],price);
+  assert.equal(new Set(rows.map(r=>r[0])).size,count);
+  const row = rows.find(r=>r[0]==='2026-11-19');
+  assert(Math.abs(row[2]-(price/nav17-1)*100)<1e-9);
+  const samples = JSON.parse(run(`JSON.stringify(readIopvArchive({code:'${code}'},nextMorningNow))`));
+  assert.equal(samples.at(-1)[0].slice(0,10),'2026-11-19');
+  assert.equal(samples.at(-1)[1],price);
+  assert.equal(samples.at(-1)[2],iopv);
+}
+assert.equal(JSON.parse(run('JSON.stringify(combineHistory({code:"QQQM",isUsStock:true},[],nextMorningNow))')).at(-1)[0],'2026-11-18');
 // Non-tradable reference prices must not be archived as a live IOPV premium.
 const liveStamp = new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).format(new Date());
 for (const flag of ['suspended','noTrades','missingPrice']) {
