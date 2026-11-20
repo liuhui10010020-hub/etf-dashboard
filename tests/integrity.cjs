@@ -21,7 +21,7 @@ for (const file of ['quote-integrity.js','history-integrity.js','extended-quotes
   vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'), context);
 }
 const run = expression => vm.runInContext(expression, context);
-run('var cn={code:"513390",isUsStock:false}; var us={code:"QQQM",isUsStock:true}; var now=new Date("2026-11-17T02:10:00Z"); var raw={f43:2.38,f60:2.38,f46:0,f44:0,f45:0,f47:0,status:"S",quoteTime:"20261117101000"}');
+run('var cn={code:"513390",isUsStock:false}; var us={code:"QQQ",isUsStock:true}; var now=new Date("2026-11-17T02:10:00Z"); var raw={f43:2.38,f60:2.38,f46:0,f44:0,f45:0,f47:0,status:"S",quoteTime:"20261117101000"}');
 run('var stopped=createQuoteCandidate(cn,raw,"tencent",now)');
 assert.equal(run('stopped.suspended'), true);
 assert.equal(run('stopped.stale'), true);
@@ -59,8 +59,8 @@ run('us.extSnapshot={price:684,time:"2026-11-11 20:01:00",tag:"after"}');
 assert.equal(run('getExtendedSnapshot(us,regular,now)'), null);
 // Cold browser: all completed histories are present without any localStorage.
 assert.equal(storage.size, 0);
-for (const [code,price,count] of [['513390',2.38,209],['159655',1.97,209],['159501',2.07,209],['QQQM',272.49,220]]) {
-  const rows = JSON.parse(run(`JSON.stringify(combineHistory({code:'${code}',isUsStock:${code==='QQQM'}},[],now))`));
+for (const [code,price,count] of [['513390',2.38,209],['159655',1.97,209],['159501',2.07,209],['QQQ',661.75,220]]) {
+  const rows = JSON.parse(run(`JSON.stringify(combineHistory({code:'${code}',isUsStock:${code==='QQQ'}},[],now))`));
   assert.equal(rows.length, count);
   assert.equal(rows.at(-1)[0], '2026-11-16');
   assert.equal(rows.at(-1)[1], price);
@@ -69,9 +69,9 @@ for (const [code,price,count] of [['513390',2.38,209],['159655',1.97,209],['1595
 }
 assert.equal(run('combineHistory(us,[],new Date("2026-11-16T19:59:00Z")).at(-1)[0]'), '2026-11-13');
 const navCache = vm.runInContext('(' + html.match(/const PUBLISHED_NAV_CACHE = (\{[\s\S]*?\});/)[1] + ')', vm.createContext());
-for (const [code,nav12,nav13,nav17] of [['513390',2.1238,2.0974,2.0261],['159655',1.8438,1.837,1.7819],['159501',1.7778,1.7555,1.6958]]) {
-  assert.equal(navCache[code].date,'2026-11-17');
-  assert.equal(navCache[code].nav,nav17);
+for (const [code,nav12,nav13,nav18] of [['513390',2.1238,2.0974,2.0342],['159655',1.8438,1.837,1.7779],['159501',1.7778,1.7555,1.7026]]) {
+  assert.equal(navCache[code].date,'2026-11-18');
+  assert.equal(navCache[code].nav,nav18);
   const rows = JSON.parse(run(`JSON.stringify(getStaticHistory({code:'${code}'}))`));
   for(const [date,nav] of [['2026-11-12',nav12],['2026-11-13',nav13]]) {
     const row=rows.find(r=>r[0]===date);
@@ -102,30 +102,30 @@ assert.equal((2.38*202100+1.958*74500-650099).toFixed(0),'-23230');
 assert.equal(run('weightedBuyPremium([{amt:150000,prem:9.81},{amt:49500,prem:9.97},{amt:100000,prem:10.47},{amt:100000,prem:9.38},{amt:100000,prem:9.59}]).toFixed(2)'), '9.83');
 assert(html.includes('--（${unavailable}）'));
 assert(html.includes('typeof getExtendedSnapshot'));
-assert.equal((html.match(/src="(?:quote-integrity|history-integrity|extended-quotes)\.js\?v=20261119-close1"/g)||[]).length,3);
+assert.equal((html.match(/src="(?:quote-integrity|history-integrity|extended-quotes)\.js\?v=20261120-close2"/g)||[]).length,3);
 assert(!html.includes('price:684.000'));
-assert(html.includes("code:'QQQM', secid:'105.QQQM'") && !html.includes("code:'QQQ',"));
+assert(html.includes("code:'QQQ', secid:'105.QQQ'") && !html.includes("code:'QQQM',"));
 assert(html.includes('--up:#ef4444') && html.includes('--down:#22c55e'));
 // November 19 cold start: completed closes and actual November 18 IOPV require no browser cache.
 run('var morningNow=new Date("2026-11-19T02:10:00Z")');
-for (const [code,price,count,iopv,nav16,nav17] of [
-  ['513390',2.369,211,2.0261,2.0411,2.0261],
-  ['159655',1.941,211,1.7822,1.8015,1.7819],
-  ['159501',2.048,211,1.6959,1.7083,1.6958],
-  ['QQQM',271.58,222,null,null,null]
+for (const [code,price,count,iopv,nav16,nav17,nav18] of [
+  ['513390',2.369,211,2.0261,2.0411,2.0261,2.0342],
+  ['159655',1.941,211,1.7822,1.8015,1.7819,1.7779],
+  ['159501',2.048,211,1.6959,1.7083,1.6958,1.7026],
+  ['QQQ',659.51,222,null,null,null,null]
 ]) {
-  const rows = JSON.parse(run(`JSON.stringify(combineHistory({code:'${code}',isUsStock:${code==='QQQM'}},[],morningNow))`));
+  const rows = JSON.parse(run(`JSON.stringify(combineHistory({code:'${code}',isUsStock:${code==='QQQ'}},[],morningNow))`));
   assert.equal(rows.length,count);
   assert.equal(rows.at(-1)[0],'2026-11-18');
   assert.equal(rows.at(-1)[1],price);
   assert.equal(new Set(rows.map(r=>r[0])).size,count);
   assert(!rows.some(r=>r[0]==='2026-11-19'));
-  if (code==='QQQM') {
-    assert.equal(rows.at(-2)[1],270.42);
+  if (code==='QQQ') {
+    assert.equal(rows.at(-2)[1],656.95);
     assert(rows.every(r=>r[2]===null));
     continue;
   }
-  for (const [date,nav] of [['2026-11-16',nav16],['2026-11-17',nav17],['2026-11-18',nav17]]) {
+  for (const [date,nav] of [['2026-11-16',nav16],['2026-11-17',nav17],['2026-11-18',nav18]]) {
     const row=rows.find(r=>r[0]===date);
     assert(Math.abs(row[2]-(row[1]/nav-1)*100)<1e-9);
   }
@@ -134,15 +134,15 @@ for (const [code,price,count,iopv,nav16,nav17] of [
   assert.equal(samples.at(-1)[1],price);
   assert.equal(samples.at(-1)[2],iopv);
   // Published NAV and IOPV are distinct feeds, not artificially forced to equal.
-  assert.equal(navCache[code].nav,nav17);
+  assert.equal(navCache[code].nav,nav18);
 }
 assert.equal(storage.size,0);
 // November 20 morning cold start should carry the verified November 19 A-share close and actual close IOPV.
 run('var nextMorningNow=new Date("2026-11-20T02:10:00Z")');
-for (const [code,price,count,iopv,nav17] of [
-  ['513390',2.384,212,2.0343,2.0261],
-  ['159655',1.941,212,1.7778,1.7819],
-  ['159501',2.056,212,1.7026,1.6958]
+for (const [code,price,count,iopv,nav18] of [
+  ['513390',2.384,212,2.0343,2.0342],
+  ['159655',1.941,212,1.7778,1.7779],
+  ['159501',2.056,212,1.7026,1.7026]
 ]) {
   const rows = JSON.parse(run(`JSON.stringify(combineHistory({code:'${code}',isUsStock:false},[],nextMorningNow))`));
   assert.equal(rows.length,count);
@@ -150,13 +150,28 @@ for (const [code,price,count,iopv,nav17] of [
   assert.equal(rows.at(-1)[1],price);
   assert.equal(new Set(rows.map(r=>r[0])).size,count);
   const row = rows.find(r=>r[0]==='2026-11-19');
-  assert(Math.abs(row[2]-(price/nav17-1)*100)<1e-9);
+  assert(Math.abs(row[2]-(price/nav18-1)*100)<1e-9);
   const samples = JSON.parse(run(`JSON.stringify(readIopvArchive({code:'${code}'},nextMorningNow))`));
   assert.equal(samples.at(-1)[0].slice(0,10),'2026-11-19');
   assert.equal(samples.at(-1)[1],price);
   assert.equal(samples.at(-1)[2],iopv);
 }
-assert.equal(JSON.parse(run('JSON.stringify(combineHistory({code:"QQQM",isUsStock:true},[],nextMorningNow))')).at(-1)[0],'2026-11-18');
+assert.equal(JSON.parse(run('JSON.stringify(combineHistory({code:"QQQ",isUsStock:true},[],nextMorningNow))')).at(-1)[0],'2026-11-19');
+// November 20 close patrol: A-share completed closes and close IOPV samples should both advance to 11-20.
+run('var closeNow2=new Date("2026-11-20T07:12:00Z")');
+for (const [code,price,iopv,nav18] of [
+  ['513390',2.273,2.0342,2.0342],
+  ['159655',1.854,1.7779,1.7779],
+  ['159501',1.966,1.7026,1.7026]
+]) {
+  const rows = JSON.parse(run(`JSON.stringify(combineHistory({code:'${code}',isUsStock:false},[],closeNow2))`));
+  assert.equal(rows.at(-1)[0],'2026-11-20');
+  assert.equal(rows.at(-1)[1],price);
+  assert(Math.abs(rows.at(-1)[2]-(price/nav18-1)*100)<1e-9);
+  const sample = JSON.parse(run(`JSON.stringify(getArchivedCloseIopv({code:'${code}'},'2026-11-20',closeNow2))`));
+  assert.equal(sample[1],price);
+  assert.equal(sample[2],iopv);
+}
 // Non-tradable reference prices must not be archived as a live IOPV premium.
 const liveStamp = new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).format(new Date());
 for (const flag of ['suspended','noTrades','missingPrice']) {
