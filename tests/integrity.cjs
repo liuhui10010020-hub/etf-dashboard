@@ -17,11 +17,11 @@ for (const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
   }
 }
 context.getStaticHistory = item => vm.runInContext(`STATIC_HIST_DATA[${JSON.stringify(item.code)}] || []`, context);
-for (const file of ['qqq-history.js','quote-integrity.js','history-integrity.js','extended-quotes.js']) {
+for (const file of ['quote-integrity.js','history-integrity.js','extended-quotes.js']) {
   vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'), context);
 }
 const run = expression => vm.runInContext(expression, context);
-run('var cn={code:"513390",isUsStock:false}; var us={code:"QQQ",isUsStock:true}; var now=new Date("2026-11-17T02:10:00Z"); var raw={f43:2.38,f60:2.38,f46:0,f44:0,f45:0,f47:0,status:"S",quoteTime:"20261117101000"}');
+run('var cn={code:"513390",isUsStock:false}; var us={code:"QQQM",isUsStock:true}; var now=new Date("2026-11-17T02:10:00Z"); var raw={f43:2.38,f60:2.38,f46:0,f44:0,f45:0,f47:0,status:"S",quoteTime:"20261117101000"}');
 run('var stopped=createQuoteCandidate(cn,raw,"tencent",now)');
 assert.equal(run('stopped.suspended'), true);
 assert.equal(run('stopped.stale'), true);
@@ -59,8 +59,8 @@ run('us.extSnapshot={price:684,time:"2026-11-11 20:01:00",tag:"after"}');
 assert.equal(run('getExtendedSnapshot(us,regular,now)'), null);
 // Cold browser: all completed histories are present without any localStorage.
 assert.equal(storage.size, 0);
-for (const [code,price,count] of [['513390',2.38,209],['159655',1.97,209],['159501',2.07,209],['QQQ',661.75,220]]) {
-  const rows = JSON.parse(run(`JSON.stringify(combineHistory({code:'${code}',isUsStock:${code==='QQQ'}},[],now))`));
+for (const [code,price,count] of [['513390',2.38,209],['159655',1.97,209],['159501',2.07,209],['QQQM',272.49,220]]) {
+  const rows = JSON.parse(run(`JSON.stringify(combineHistory({code:'${code}',isUsStock:${code==='QQQM'}},[],now))`));
   assert.equal(rows.length, count);
   assert.equal(rows.at(-1)[0], '2026-11-16');
   assert.equal(rows.at(-1)[1], price);
@@ -104,7 +104,7 @@ assert(html.includes('--（${unavailable}）'));
 assert(html.includes('typeof getExtendedSnapshot'));
 assert.equal((html.match(/src="(?:quote-integrity|history-integrity|extended-quotes)\.js\?v=20261119-close1"/g)||[]).length,3);
 assert(!html.includes('price:684.000'));
-assert(html.includes("code:'QQQ', secid:'105.QQQ'") && !html.includes("code:'QQQM',"));
+assert(html.includes("code:'QQQM', secid:'105.QQQM'") && !html.includes("code:'QQQ',"));
 assert(html.includes('--up:#ef4444') && html.includes('--down:#22c55e'));
 // November 19 cold start: completed closes and actual November 18 IOPV require no browser cache.
 run('var morningNow=new Date("2026-11-19T02:10:00Z")');
@@ -112,16 +112,16 @@ for (const [code,price,count,iopv,nav16,nav17] of [
   ['513390',2.369,211,2.0261,2.0411,2.0261],
   ['159655',1.941,211,1.7822,1.8015,1.7819],
   ['159501',2.048,211,1.6959,1.7083,1.6958],
-  ['QQQ',659.51,222,null,null,null]
+  ['QQQM',271.58,222,null,null,null]
 ]) {
-  const rows = JSON.parse(run(`JSON.stringify(combineHistory({code:'${code}',isUsStock:${code==='QQQ'}},[],morningNow))`));
+  const rows = JSON.parse(run(`JSON.stringify(combineHistory({code:'${code}',isUsStock:${code==='QQQM'}},[],morningNow))`));
   assert.equal(rows.length,count);
   assert.equal(rows.at(-1)[0],'2026-11-18');
   assert.equal(rows.at(-1)[1],price);
   assert.equal(new Set(rows.map(r=>r[0])).size,count);
   assert(!rows.some(r=>r[0]==='2026-11-19'));
-  if (code==='QQQ') {
-    assert.equal(rows.at(-2)[1],656.95);
+  if (code==='QQQM') {
+    assert.equal(rows.at(-2)[1],270.42);
     assert(rows.every(r=>r[2]===null));
     continue;
   }
@@ -156,7 +156,7 @@ for (const [code,price,count,iopv,nav17] of [
   assert.equal(samples.at(-1)[1],price);
   assert.equal(samples.at(-1)[2],iopv);
 }
-assert.equal(JSON.parse(run('JSON.stringify(combineHistory({code:"QQQ",isUsStock:true},[],nextMorningNow))')).at(-1)[0],'2026-11-19');
+assert.equal(JSON.parse(run('JSON.stringify(combineHistory({code:"QQQM",isUsStock:true},[],nextMorningNow))')).at(-1)[0],'2026-11-18');
 // Non-tradable reference prices must not be archived as a live IOPV premium.
 const liveStamp = new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).format(new Date());
 for (const flag of ['suspended','noTrades','missingPrice']) {
