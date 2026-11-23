@@ -81,6 +81,8 @@ for (const [code,nav12,nav13,nav19] of [['513390',2.1238,2.0974,1.99],['159655',
 }
 assert.equal(run('isIopvCurrent(cn,2.0411,"2026-11-17 09:30:00",now)'),false);
 assert.equal(run('isIopvCurrent(cn,0,"2026-11-17 10:10:00",now)'),false);
+assert.equal(run('isIopvCurrent(cn,1.8791,"2026-11-23 15:10:00",new Date("2026-11-23T07:12:00Z"))'),false);
+assert.equal(run('isIopvCurrent(cn,1.8791,"2026-11-23 14:59:00",new Date("2026-11-23T06:59:30Z"))'),true);
 assert.equal(run('readIopvArchive(us,now).length'),0);
 // Verified close patrol persists today's closes and actual IOPV without browser storage.
 run('var closeNow=new Date("2026-11-17T07:15:00Z")');
@@ -102,7 +104,7 @@ assert.equal((2.38*202100+1.958*74500-650099).toFixed(0),'-23230');
 assert.equal(run('weightedBuyPremium([{amt:150000,prem:9.81},{amt:49500,prem:9.97},{amt:100000,prem:10.47},{amt:100000,prem:9.38},{amt:100000,prem:9.59}]).toFixed(2)'), '9.83');
 assert(html.includes('--（${unavailable}）'));
 assert(html.includes('typeof getExtendedSnapshot'));
-assert.equal((html.match(/src="(?:quote-integrity|history-integrity|extended-quotes)\.js\?v=20261123-close1"/g)||[]).length,3);
+assert.equal((html.match(/src="(?:quote-integrity|history-integrity|extended-quotes)\.js\?v=20261123-close2"/g)||[]).length,3);
 assert(!html.includes('price:684.000'));
 assert(html.includes("code:'QQQ', secid:'105.QQQ'") && !html.includes("code:'QQQM',"));
 assert(html.includes('--up:#ef4444') && html.includes('--down:#22c55e'));
@@ -199,6 +201,10 @@ for (const flag of ['suspended','noTrades','missingPrice']) {
   run(`recordIopv({code:'159655',nav:1.7778,navIsLatest:true,navFallbackDate:'${liveStamp}'},{f43:1.944,quoteTime:'${liveStamp}',${flag}:true})`);
   assert.equal(storage.size,0);
 }
+run(`recordIopv({code:'159655',nav:1.6804,navIsLatest:false,navIsCloseIopv:true,navFallbackDate:'${liveStamp}'},{f43:1.845,quoteTime:'${liveStamp}'})`);
+assert.equal(storage.has('etf-iopv-v1-159655'),true);
+assert.equal(JSON.parse(storage.get('etf-iopv-v1-159655')).at(-1)[2],1.6804);
+storage.clear();
 assert.equal(run('recordCompletedClose(cn,{f43:2.369,quoteTime:"2026-11-19 15:10:00",suspended:true},new Date("2026-11-19T07:15:00Z"))'),false);
 // Close patrol must survive a cold browser with all quote endpoints unavailable.
 for (const [code, price, iopv] of [['513390',2.241,1.8791],['159655',1.845,1.6804],['159501',1.939,1.5724]]) {

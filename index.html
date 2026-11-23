@@ -153,7 +153,7 @@
   <div class="note">
     <strong>数据说明：</strong>
     ① <b>现价 / 涨跌幅</b>：东方财富 push2 与腾讯财经双源校验时间及有效性，择新报价，源时间在卡片标注；A股交易时段 9:30–11:30、13:00–15:00，每30秒刷新。QQQ 使用美东时间标注最新报价。<br>
-    ② <b>实时估值(IOPV)</b>：采用腾讯财经 IOPV 字段；该字段不提供独立估值时间，卡片标注同行情响应的时间。停牌时该时间是接口响应时间，不是成交时间；即使IOPV有效，停牌参考价计算的溢价仍标为“参考溢价率”，不代表可成交价格。IOPV 无效或超时则使用带日期的已公布净值参考值，收盘报价响应超过30分钟不再标为实时，不冒充实时估值。<br>
+    ② <b>实时估值(IOPV)</b>：采用腾讯财经 IOPV 字段；该字段不提供独立估值时间，卡片标注同行情响应的时间。停牌时该时间是接口响应时间，不是成交时间；即使IOPV有效，停牌参考价计算的溢价仍标为“参考溢价率”，不代表可成交价格。收盘后使用当日实采IOPV计算并明确标注“收盘溢价率”；缺少当日实采时才使用带日期的已公布净值参考值，不冒充盘中实时估值。<br>
     ③ <b>实时溢价率</b> = 有效现价 / 实时IOPV − 1；任一输入非实时则标为“参考溢价率”。<b>持仓盈亏</b> = 现价×份额−买入金额；表内折算成本 = 买入金额/份额，原始记录成交价保留在单元格提示中；<b>加权买入溢价率</b>使用原始买入溢价率按买入金额加权，不随今日IOPV变化。<br>
     ④ 无有效成交、报价超时或接口失败时显式标注参考状态；今开 / 最高 / 最低缺失保留“未提供”，不填0，也不捏造为最新价。汇总中如含参考报价，会标注“含参考报价估算”；缺任一持仓价则不显示不完整的总盈亏。<br>
     ⑤ <b>图表口径</b>：蓝线只显示已完成交易日的收盘价，日期与缓存来源明确标注；黄线为历史收盘价相对东方财富已公布基金净值计算的<b>历史参考溢价率</b>，若QDII净值尚未披露，则沿用最近一期已公布净值作参考并在来源中标注，覆盖完整历史区间但不冒充实时IOPV；紫色点线仅记录已核验实采及当前浏览器实采的有效报价与实时IOPV溢价，不补造未采集日期。QQQ 是美国上市ETF，不套用A股QDII的IOPV溢价口径。<br>
@@ -242,9 +242,9 @@ const HISTORY_QQQ = [["2026-01-02",611.038,null],["2026-01-05",615.892,null],["2
   }
 })();
 </script>
-<script src="quote-integrity.js?v=20261123-close1"></script>
-<script src="history-integrity.js?v=20261123-close1"></script>
-<script src="extended-quotes.js?v=20261123-close1"></script>
+<script src="quote-integrity.js?v=20261123-close2"></script>
+<script src="history-integrity.js?v=20261123-close2"></script>
+<script src="extended-quotes.js?v=20261123-close2"></script>
 <script>
 window.onerror = function(msg, url, line, _col, _err) { console.error("Global JS Error:", msg, "at line", line); };
 /* global STATIC_HIST_DATA, echarts */
@@ -714,11 +714,16 @@ function fetchAll(){
         // 收盘后腾讯 IOPV 不再算“实时”，但当日收盘 IOPV 仍是正确的溢价基准；缺失时才回退已披露净值。
         const sessionDate = getMarketDate(p, new Date());
         const archived = typeof getArchivedCloseIopv === 'function' ? getArchivedCloseIopv(p, sessionDate) : null;
-        const sessionIopv = validPositive(iopv) && quoteTime.slice(0, 10) === sessionDate ? iopv : null;
-        const closeIopv = sessionIopv || (archived ? archived[2] : null);
+        const bj = getBeijingNow();
+        const afterClose = bj.getUTCHours() * 60 + bj.getUTCMinutes() >= 900;
+        const quoteMinutes = Number(quoteTime.slice(11,13)) * 60 + Number(quoteTime.slice(14,16));
+        const stamp = Date.parse(quoteTime.replace(' ', 'T') + '+08:00');
+        const sessionIopv = afterClose && validPositive(iopv) && quoteTime.slice(0,10) === sessionDate &&
+          quoteMinutes >= 900 && Number.isFinite(stamp) && stamp <= Date.now() + 120000 ? iopv : null;
+        const closeIopv = afterClose ? (sessionIopv || (archived ? archived[2] : null)) : null;
         if (validPositive(closeIopv)) {
           p.nav = closeIopv;
-          p.navFallbackDate = sessionDate;
+          p.navFallbackDate = sessionIopv ? quoteTime : archived[0];
           p.navIsCloseIopv = true;
         } else {
           // Restore a dated published NAV, rather than relabeling yesterday's IOPV as NAV.
@@ -736,9 +741,11 @@ function fetchAll(){
     let failedItems = [];
 
     PORTFOLIO.forEach(p => {
+      const txRaw = txData[p.code];
+      const txQuote = createQuoteCandidate(p, txRaw, 'tencent');
+      // Show a validated quote immediately; an unavailable second source must not delay it.
+      if (txQuote && txQuote.valid) applyLive(p, txQuote);
       emJsonp(p.secid, FIELDS, data => {
-        const txRaw = txData[p.code];
-        const txQuote = createQuoteCandidate(p, txRaw, 'tencent');
         const emRaw = data && data.data;
         // A newer response from another feed must not override a confirmed suspension.
         const emQuote = createQuoteCandidate(p,
@@ -755,6 +762,7 @@ function fetchAll(){
         checkDone();
       });
     });
+    applySummary();
 
     function checkDone() {
       if (done !== total) return;
@@ -966,7 +974,9 @@ function renderChart(item, data) {
 function updateLiveStatus(ok, staleCount=0){
   const dot=$('#liveDot'), txt=$('#liveTxt');
   if(ok===PORTFOLIO.length && staleCount===0){
-    dot.classList.remove('off'); txt.textContent='行情已更新';
+    dot.classList.remove('off');
+    const selected = PORTFOLIO.map(p => liveData[p.code]);
+    txt.textContent = selected.every(q => q && q.source === 'tencent') ? '行情已更新 · 当前采用腾讯行情' : '行情已更新';
   } else if(ok>0){
     dot.classList.remove('off');
     if(staleCount>0){
