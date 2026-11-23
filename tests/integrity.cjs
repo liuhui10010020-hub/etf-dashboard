@@ -102,7 +102,7 @@ assert.equal((2.38*202100+1.958*74500-650099).toFixed(0),'-23230');
 assert.equal(run('weightedBuyPremium([{amt:150000,prem:9.81},{amt:49500,prem:9.97},{amt:100000,prem:10.47},{amt:100000,prem:9.38},{amt:100000,prem:9.59}]).toFixed(2)'), '9.83');
 assert(html.includes('--（${unavailable}）'));
 assert(html.includes('typeof getExtendedSnapshot'));
-assert.equal((html.match(/src="(?:quote-integrity|history-integrity|extended-quotes)\.js\?v=20261123-am1"/g)||[]).length,3);
+assert.equal((html.match(/src="(?:quote-integrity|history-integrity|extended-quotes)\.js\?v=20261123-close1"/g)||[]).length,3);
 assert(!html.includes('price:684.000'));
 assert(html.includes("code:'QQQ', secid:'105.QQQ'") && !html.includes("code:'QQQM',"));
 assert(html.includes('--up:#ef4444') && html.includes('--down:#22c55e'));
@@ -200,6 +200,19 @@ for (const flag of ['suspended','noTrades','missingPrice']) {
   assert.equal(storage.size,0);
 }
 assert.equal(run('recordCompletedClose(cn,{f43:2.369,quoteTime:"2026-11-19 15:10:00",suspended:true},new Date("2026-11-19T07:15:00Z"))'),false);
+// Close patrol must survive a cold browser with all quote endpoints unavailable.
+for (const [code, price, iopv] of [['513390',2.241,1.8791],['159655',1.845,1.6804],['159501',1.939,1.5724]]) {
+  const atClose='new Date("2026-11-23T07:15:00Z")';
+  const item=`{code:"${code}",isUsStock:false}`;
+  const rows=JSON.parse(run(`JSON.stringify(combineHistory(${item},[],${atClose}))`));
+  assert.equal(rows.at(-1)[0],'2026-11-23');
+  assert.equal(rows.at(-1)[1],price);
+  const observed=JSON.parse(run(`JSON.stringify(readIopvArchive(${item},${atClose}))`));
+  assert.equal(observed.at(-1)[0].slice(0,10),'2026-11-23');
+  assert.equal(observed.at(-1)[1],price);
+  assert.equal(observed.at(-1)[2],iopv);
+  assert.equal(run(`combineHistory(${item},[],new Date("2026-11-23T06:59:00Z")).some(r=>r[0]==="2026-11-23")`),false);
+}
 // A sparse NAV before a price date may be used; later NAVs must never leak backwards.
 const sparse=JSON.parse(run('JSON.stringify(buildHistoricalReferenceRows([["2026-11-13",2,8],["2026-11-16",2.38,null],["2026-11-18",2.369,null]],[["2026-11-17",2.0261],["2026-11-15",2.0411]]))'));
 assert.equal(sparse[0][2],8);
