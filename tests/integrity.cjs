@@ -1,6 +1,16 @@
 const fs = require('node:fs');
 const vm = require('node:vm');
-const assert = require('node:assert/strict');
+const nodeAssert = require('node:assert/strict');
+let assertionCount = 0;
+const assert = new Proxy(nodeAssert, {
+  apply(target, receiver, args) { assertionCount++; return Reflect.apply(target, receiver, args); },
+  get(target, key) {
+    const value = Reflect.get(target, key);
+    return typeof value === 'function' ? (...args) => {
+      assertionCount++; return Reflect.apply(value, target, args);
+    } : value;
+  }
+});
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
@@ -21,7 +31,7 @@ for (const file of ['quote-integrity.js','history-integrity.js','extended-quotes
   vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'), context);
 }
 const run = expression => vm.runInContext(expression, context);
-run('var cn={code:"513390",isUsStock:false}; var us={code:"QQQ",isUsStock:true}; var now=new Date("2026-11-17T02:10:00Z"); var raw={f43:2.38,f60:2.38,f46:0,f44:0,f45:0,f47:0,status:"S",quoteTime:"20261117101000"}');
+run('var cn={code:"513390",isUsStock:false}; var us={code:"QQQM",isUsStock:true}; var now=new Date("2026-11-17T02:10:00Z"); var raw={f43:2.38,f60:2.38,f46:0,f44:0,f45:0,f47:0,status:"S",quoteTime:"20261117101000"}');
 run('var stopped=createQuoteCandidate(cn,raw,"tencent",now)');
 assert.equal(run('stopped.suspended'), true);
 assert.equal(run('stopped.stale'), true);
@@ -59,8 +69,8 @@ run('us.extSnapshot={price:684,time:"2026-11-11 20:01:00",tag:"after"}');
 assert.equal(run('getExtendedSnapshot(us,regular,now)'), null);
 // Cold browser: all completed histories are present without any localStorage.
 assert.equal(storage.size, 0);
-for (const [code,price,count] of [['513390',2.38,209],['159655',1.97,209],['159501',2.07,209],['QQQ',661.75,220]]) {
-  const rows = JSON.parse(run(`JSON.stringify(combineHistory({code:'${code}',isUsStock:${code==='QQQ'}},[],now))`));
+for (const [code,price,count] of [['513390',2.38,209],['159655',1.97,209],['159501',2.07,209],['QQQM',272.49,220]]) {
+  const rows = JSON.parse(run(`JSON.stringify(combineHistory({code:'${code}',isUsStock:${code==='QQQM'}},[],now))`));
   assert.equal(rows.length, count);
   assert.equal(rows.at(-1)[0], '2026-11-16');
   assert.equal(rows.at(-1)[1], price);
@@ -69,9 +79,9 @@ for (const [code,price,count] of [['513390',2.38,209],['159655',1.97,209],['1595
 }
 assert.equal(run('combineHistory(us,[],new Date("2026-11-16T19:59:00Z")).at(-1)[0]'), '2026-11-13');
 const navCache = vm.runInContext('(' + html.match(/const PUBLISHED_NAV_CACHE = (\{[\s\S]*?\});/)[1] + ')', vm.createContext());
-for (const [code,nav12,nav13,nav19] of [['513390',2.1238,2.0974,1.99],['159655',1.8438,1.837,1.7421],['159501',1.7778,1.7555,1.6655]]) {
-  assert.equal(navCache[code].date,'2026-11-19');
-  assert.equal(navCache[code].nav,nav19);
+for (const [code,nav12,nav13,nav20] of [['513390',2.1238,2.0974,1.8789],['159655',1.8438,1.837,1.6800],['159501',1.7778,1.7555,1.5723]]) {
+  assert.equal(navCache[code].date,'2026-11-20');
+  assert.equal(navCache[code].nav,nav20);
   const rows = JSON.parse(run(`JSON.stringify(getStaticHistory({code:'${code}'}))`));
   for(const [date,nav] of [['2026-11-12',nav12],['2026-11-13',nav13]]) {
     const row=rows.find(r=>r[0]===date);
@@ -104,9 +114,12 @@ assert.equal((2.38*202100+1.958*74500-650099).toFixed(0),'-23230');
 assert.equal(run('weightedBuyPremium([{amt:150000,prem:9.81},{amt:49500,prem:9.97},{amt:100000,prem:10.47},{amt:100000,prem:9.38},{amt:100000,prem:9.59}]).toFixed(2)'), '9.83');
 assert(html.includes('--（${unavailable}）'));
 assert(html.includes('typeof getExtendedSnapshot'));
-assert.equal((html.match(/src="(?:quote-integrity|history-integrity|extended-quotes)\.js\?v=20261123-close2"/g)||[]).length,3);
+assert.equal((html.match(/src="(?:quote-integrity|history-integrity|extended-quotes)\.js\?v=20261124-close"/g)||[]).length,3);
 assert(!html.includes('price:684.000'));
-assert(html.includes("code:'QQQ', secid:'105.QQQ'") && !html.includes("code:'QQQM',"));
+assert(html.includes("code:'QQQM', secid:'105.QQQM'") && !html.includes("code:'QQQ',"));
+assert.equal(run('getStaticHistory({code:"QQQ"}).length'),0);
+assert(!html.includes('HISTORY_QQQ'));
+assert(!/\bQQQ\b/.test(html.slice(0,html.indexOf('<script>'))));
 assert(html.includes('--up:#ef4444') && html.includes('--down:#22c55e'));
 // November 19 cold start: completed closes and actual November 18 IOPV require no browser cache.
 run('var morningNow=new Date("2026-11-19T02:10:00Z")');
@@ -114,16 +127,16 @@ for (const [code,price,count,iopv,nav16,nav17,nav18] of [
   ['513390',2.369,211,2.0261,2.0411,2.0261,2.0342],
   ['159655',1.941,211,1.7822,1.8015,1.7819,1.7779],
   ['159501',2.048,211,1.6959,1.7083,1.6958,1.7026],
-  ['QQQ',659.51,222,null,null,null,null]
+  ['QQQM',271.58,222,null,null,null,null]
 ]) {
-  const rows = JSON.parse(run(`JSON.stringify(combineHistory({code:'${code}',isUsStock:${code==='QQQ'}},[],morningNow))`));
+  const rows = JSON.parse(run(`JSON.stringify(combineHistory({code:'${code}',isUsStock:${code==='QQQM'}},[],morningNow))`));
   assert.equal(rows.length,count);
   assert.equal(rows.at(-1)[0],'2026-11-18');
   assert.equal(rows.at(-1)[1],price);
   assert.equal(new Set(rows.map(r=>r[0])).size,count);
   assert(!rows.some(r=>r[0]==='2026-11-19'));
-  if (code==='QQQ') {
-    assert.equal(rows.at(-2)[1],656.95);
+  if (code==='QQQM') {
+    assert.equal(rows.at(-2)[1],270.42);
     assert(rows.every(r=>r[2]===null));
     continue;
   }
@@ -158,8 +171,8 @@ for (const [code,price,count,iopv,nav18] of [
   assert.equal(samples.at(-1)[1],price);
   assert.equal(samples.at(-1)[2],iopv);
 }
-assert.equal(JSON.parse(run('JSON.stringify(combineHistory({code:"QQQ",isUsStock:true},[],nextMorningNow))')).at(-1)[0],'2026-11-19');
-// November 23 morning cold start should retain Friday closes and the latest published 11/19 NAV reference.
+assert.equal(JSON.parse(run('JSON.stringify(combineHistory({code:"QQQM",isUsStock:true},[],nextMorningNow))')).at(-1)[0],'2026-11-19');
+// November 23 morning: retain Friday closes and both dated 11/19 and 11/20 NAV references.
 run('var mondayMorningNow=new Date("2026-11-23T02:10:00Z")');
 for (const [code,price,count,nav19] of [
   ['513390',2.273,213,1.99],
@@ -170,16 +183,19 @@ for (const [code,price,count,nav19] of [
   assert.equal(rows.length,count);
   assert.equal(rows.at(-1)[0],'2026-11-20');
   assert.equal(rows.at(-1)[1],price);
-  const withCache = JSON.parse(run(`JSON.stringify(buildHistoricalReferenceRows(combineHistory({code:'${code}',isUsStock:false},[],mondayMorningNow),[[${JSON.stringify(navCache[code].date)},${nav19}]]))`));
+  const withCache = JSON.parse(run(`JSON.stringify(buildHistoricalReferenceRows(combineHistory({code:'${code}',isUsStock:false},[],mondayMorningNow),[["2026-11-19",${nav19}],[${JSON.stringify(navCache[code].date)},${navCache[code].nav}]]))`));
+  const row18 = withCache.find(r=>r[0]==='2026-11-18');
+  assert.equal(row18[2],rows.find(r=>r[0]==='2026-11-18')[2]);
   const row19 = withCache.find(r=>r[0]==='2026-11-19');
   const row20 = withCache.find(r=>r[0]==='2026-11-20');
   assert(Math.abs(row19[2]-(row19[1]/nav19-1)*100)<1e-9);
-  assert(Math.abs(row20[2]-(price/nav19-1)*100)<1e-9);
+  assert(Math.abs(row20[2]-(price/navCache[code].nav-1)*100)<1e-9);
 }
-const qqqMonday = JSON.parse(run('JSON.stringify(combineHistory({code:"QQQ",isUsStock:true},[],mondayMorningNow))'));
-assert.equal(qqqMonday.length,224);
-assert.equal(qqqMonday.at(-1)[0],'2026-11-20');
-assert.equal(qqqMonday.at(-1)[1],608.45);
+const qqqmMonday = JSON.parse(run('JSON.stringify(combineHistory(us,[],mondayMorningNow))'));
+assert.equal(qqqmMonday.length,224);
+assert.equal(qqqmMonday.at(-1)[0],'2026-11-20');
+assert.equal(qqqmMonday.at(-1)[1],251.23);
+assert.equal(qqqmMonday.at(-2)[1],265.64);
 // November 20 close patrol: A-share completed closes and close IOPV samples should both advance to 11-20.
 run('var closeNow2=new Date("2026-11-20T07:12:00Z")');
 for (const [code,price,iopv,nav18] of [
@@ -219,6 +235,107 @@ for (const [code, price, iopv] of [['513390',2.241,1.8791],['159655',1.845,1.680
   assert.equal(observed.at(-1)[2],iopv);
   assert.equal(run(`combineHistory(${item},[],new Date("2026-11-23T06:59:00Z")).some(r=>r[0]==="2026-11-23")`),false);
 }
+// November 24 cold start: today's verified closes and timestamped actual IOPV survive endpoint failure.
+const patrol = [['513390',2.321,2.0074,'15:21:23'],['159655',1.898,1.7568,'15:21:30'],['159501',2.013,1.6796,'15:21:30']];
+const atPatrol = 'new Date("2026-11-24T07:25:00Z")';
+for (const [code,price,iopv,time] of patrol) {
+  const item = `{code:"${code}",isUsStock:false}`;
+  const rows = JSON.parse(run(`JSON.stringify(combineHistory(${item},[],${atPatrol}))`));
+  assert.equal(rows.length,215);
+  assert.deepEqual(rows.at(-1),['2026-11-24',price,null]);
+  assert.equal(new Set(rows.map(r=>r[0])).size,rows.length);
+  const sample = JSON.parse(run(`JSON.stringify(getArchivedCloseIopv(${item},"2026-11-24",${atPatrol}))`));
+  assert.deepEqual(sample,[`2026-11-24 ${time}`,price,iopv]);
+  assert.equal(run(`combineHistory(${item},[],new Date("2026-11-24T06:59:00Z")).at(-1)[0]`),'2026-11-23');
+  // A later archive response must not appear before it was captured.
+  assert.equal(run(`getArchivedCloseIopv(${item},"2026-11-24",new Date("2026-11-24T07:20:00Z"))`),null);
+}
+for (const instant of ['2026-11-23T22:00:00Z','2026-11-24T07:25:00Z']) {
+  const rows = JSON.parse(run(`JSON.stringify(combineHistory(us,[],new Date("${instant}")))`));
+  assert.equal(rows.length,225);
+  assert.deepEqual(rows.at(-1),['2026-11-23',267.97,null]);
+  assert.equal(rows.find(r=>r[0]==='2026-11-19')[1],265.64);
+  assert.equal(rows.find(r=>r[0]==='2026-11-20')[1],251.23);
+  assert(rows.every(r=>r[2]===null));
+}
+// Polluted old cache and live rows cannot replace any verified static or latest close.
+for (const [code,price] of patrol) {
+  const item = `{code:"${code}",isUsStock:false}`;
+  const baseline = JSON.parse(run(`JSON.stringify(combineHistory(${item},[],${atPatrol}))`));
+  storage.set('etf-closes-v1-'+code,JSON.stringify(baseline.map(r=>[r[0],99,99])));
+  const polluted = JSON.parse(run(`JSON.stringify(combineHistory(${item},[["2026-11-24",88,88],["2026-11-16",77,77]],${atPatrol}))`));
+  assert.deepEqual(polluted,baseline);
+  assert.equal(polluted.at(-1)[1],price);
+  storage.clear();
+}
+storage.set('etf-closes-v1-QQQM',JSON.stringify([['2026-11-19',645.04],['2026-11-23',651.03]]));
+assert.equal(run(`combineHistory(us,[["2026-11-23",651.03]],${atPatrol}).at(-1)[1]`),267.97);
+storage.clear();
+// Only missing dates can be filled by cache; a live sample may update an unverified date.
+storage.set('etf-closes-v1-513390','[["2026-11-25",2.4]]');
+assert.equal(run('combineHistory(cn,[["2026-11-25",2.5]],new Date("2026-11-25T07:25:00Z")).at(-1)[1]'),2.5);
+assert.equal(run('combineHistory(cn,[],new Date("2026-11-25T07:25:00Z")).at(-1)[1]'),2.4);
+storage.clear();
+storage.set('etf-closes-v1-513390','{broken');
+assert.equal(run(`combineHistory(cn,[],${atPatrol}).at(-1)[1]`),2.321);
+storage.clear();
+// Execute the actual fetchAll NAV-selection body (not a duplicate of the production rules).
+const navStart = html.indexOf('const DATED_PUBLISHED_NAV_CACHE =');
+const navEnd = html.indexOf('PORTFOLIO.forEach(p=>{',navStart);
+vm.runInContext(html.slice(navStart,navEnd),context);
+const selectionStart = html.indexOf('      const tx = txData[p.code];');
+const selectionEnd = html.indexOf('      updateNavDisplay(p);',selectionStart);
+assert(selectionStart>0 && selectionEnd>selectionStart);
+vm.runInContext(`function selectNavForTest(p,txData) {${html.slice(selectionStart,selectionEnd)} return p; }`,context);
+const RealDate = Date;
+let fixedTime = Date.parse('2026-11-24T07:25:00Z');
+context.Date = class extends RealDate {
+  constructor(...args) { super(...(args.length ? args : [fixedTime])); }
+  static now() { return fixedTime; }
+};
+for (const [code,price,iopv,time] of patrol) {
+  const item = `{code:"${code}",isUsStock:false}`;
+  const raw = `{f43:${price},f60:${price},f46:${price},f44:${price},f45:${price},f47:1000,iopv:9,quoteTime:"2026-11-24 ${time}"}`;
+  // No feed: correctly dated archive remains available, never labelled intraday/latest.
+  const archived = JSON.parse(run(`JSON.stringify(selectNavForTest(${item},{}))`));
+  assert.equal(archived.nav,iopv);
+  assert.equal(archived.navIsCloseIopv,true);
+  assert.equal(archived.navIsLatest,false);
+  assert.equal(archived.navFallbackDate,`2026-11-24 ${time}`);
+  // Suspended, no-trade, missing-price and previous-day responses cannot supply a close IOPV.
+  for (const invalid of ['status:"S"','f46:0,f44:0,f45:0,f47:0','f43:0','quoteTime:"2026-11-23 15:21:30"']) {
+    const result = JSON.parse(run(`JSON.stringify(selectNavForTest(${item},{"${code}":{...${raw},${invalid}}}))`));
+    assert.equal(result.nav,iopv);
+    assert.equal(result.navIsLatest,false);
+    assert.equal(result.navFallbackDate,`2026-11-24 ${time}`);
+  }
+  const valid = JSON.parse(run(`JSON.stringify(selectNavForTest(${item},{"${code}":{...${raw},iopv:${iopv}}}))`));
+  assert.equal(valid.nav,iopv);
+  assert.equal(valid.navIsCloseIopv,true);
+  assert.equal(valid.navIsLatest,false);
+  assert.match(run(`quoteNote(${item},createQuoteCandidate(${item},{...${raw},status:"S"},"tencent"))`),/不可成交的参考报价/);
+}
+// Intraday no-trade/suspension must fall back to published NAV, even with a current IOPV timestamp.
+fixedTime = Date.parse('2026-11-24T02:10:00Z');
+for (const [code,price,iopv] of patrol) {
+  const item = `{code:"${code}",isUsStock:false}`;
+  const raw = `{f43:${price},f60:${price},f46:${price},f44:${price},f45:${price},f47:1000,iopv:${iopv},quoteTime:"2026-11-24 10:10:00"}`;
+  const valid = JSON.parse(run(`JSON.stringify(selectNavForTest(${item},{"${code}":${raw}}))`));
+  assert.equal(valid.navIsLatest,true);
+  assert.equal(valid.nav,iopv);
+  for (const invalid of ['status:"S"','f46:0,f44:0,f45:0,f47:0','f43:0']) {
+    const fallback = JSON.parse(run(`JSON.stringify(selectNavForTest(${item},{"${code}":{...${raw},${invalid}}}))`));
+    assert.equal(fallback.navIsLatest,false);
+    assert.equal(fallback.navIsCloseIopv,false);
+    assert.equal(fallback.nav,navCache[code].nav);
+    assert.equal(fallback.navFallbackDate,'2026-11-20');
+  }
+}
+// After a close with no same-day archive, a suspended response also falls back to dated NAV.
+fixedTime = Date.parse('2026-11-25T07:25:00Z');
+assert.equal(run('selectNavForTest(cn,{"513390":{...trading,status:"S",iopv:9,quoteTime:"2026-11-25 15:21:23"}}).nav'),1.8789);
+assert.equal(run('selectNavForTest(cn,{"513390":{...trading,status:"S",iopv:9,quoteTime:"2026-11-25 15:21:23"}}).navIsCloseIopv'),false);
+context.Date = RealDate;
 // A sparse NAV before a price date may be used; later NAVs must never leak backwards.
 const sparse=JSON.parse(run('JSON.stringify(buildHistoricalReferenceRows([["2026-11-13",2,8],["2026-11-16",2.38,null],["2026-11-18",2.369,null]],[["2026-11-17",2.0261],["2026-11-15",2.0411]]))'));
 assert.equal(sparse[0][2],8);
@@ -228,8 +345,18 @@ assert(Math.abs(sparse[2][2]-(2.369/2.0261-1)*100)<1e-9);
 context.document.createElement=()=>({remove(){}});
 context.document.head={appendChild:script=>script.onload()};
 context.window.Data_netWorthTrend=[{x:Date.parse('2026-11-17T00:00:00+08:00'),y:99}];
-run('loadOfficialNavHistory(cn)').then(rows=>{
+run('loadOfficialNavHistory(cn)').then(async rows=>{
   assert.equal(rows.length,0);
   assert.equal(context.window.Data_netWorthTrend[0].y,99);
-  console.log('PASS: syntax, suspension, quote validity, dated US quotes, cold-browser closes through 11/18, published NAV, as-of premiums, isolated NAV feeds, actual IOPV and holdings');
+  context.renderStaticHistory=()=>{};
+  let rendered;
+  context.renderChart=(_item,priceRows)=>{rendered=priceRows;};
+  for (const [code,nav19] of [['513390',1.99],['159655',1.7421],['159501',1.6655]]) {
+    await run(`loadHistoryAndRender({code:"${code}",isUsStock:false})`);
+    const row19=rendered.find(r=>r[0]==='2026-11-19');
+    const row20=rendered.find(r=>r[0]==='2026-11-20');
+    assert(Math.abs(row19[2]-(row19[1]/nav19-1)*100)<1e-9);
+    assert(Math.abs(row20[2]-(row20[1]/navCache[code].nav-1)*100)<1e-9);
+  }
+  console.log(`PASS: ${assertionCount} assertions; syntax, QQQM anti-regression, cold-browser closes through 11/24, actual IOPV, polluted cache, suspension/no-trades, dated NAV/as-of premiums, isolated NAV feeds and holdings`);
 }).catch(error=>{console.error(error);process.exitCode=1;});

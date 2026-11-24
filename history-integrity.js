@@ -1,5 +1,5 @@
 /* Completed closes, published-NAV references and timestamped IOPV observations remain separate. */
-/* global getMarketDate, validPositive, getStaticHistory, getLatestStaticNavSnapshot, echarts, renderChart, renderStaticHistory, document, window, localStorage */
+/* global getMarketDate, validPositive, getStaticHistory, getLatestStaticNavSnapshot, getStaticPublishedNavRows, echarts, renderChart, renderStaticHistory, document, window, localStorage */
 /* exported recordIopv, loadHistoryAndRender */
 function sanitizeHistory(item, raw, now = new Date()) {
   const date = getMarketDate(item, now);
@@ -16,11 +16,12 @@ function sanitizeHistory(item, raw, now = new Date()) {
 }
 function combineHistory(item, rows, now = new Date()) {
   const latestCloses = {
-    '513390': [['2026-11-05',2.410],['2026-11-06',2.332],['2026-11-09',2.325],['2026-11-10',2.409],['2026-11-11',2.442],['2026-11-12',2.424],['2026-11-13',2.435],['2026-11-16',2.380],['2026-11-17',2.351],['2026-11-18',2.369],['2026-11-19',2.384],['2026-11-20',2.273],['2026-11-23',2.241]],
-    '159655': [['2026-11-05',1.998],['2026-11-06',1.936],['2026-11-09',1.949],['2026-11-10',1.995],['2026-11-11',2.001],['2026-11-12',1.999],['2026-11-13',2.004],['2026-11-16',1.970],['2026-11-17',1.937],['2026-11-18',1.941],['2026-11-19',1.941],['2026-11-20',1.854],['2026-11-23',1.845]],
-    '159501': [['2026-11-05',2.132],['2026-11-06',2.069],['2026-11-09',2.055],['2026-11-10',2.110],['2026-11-11',2.123],['2026-11-12',2.107],['2026-11-13',2.107],['2026-11-16',2.070],['2026-11-17',2.047],['2026-11-18',2.048],['2026-11-19',2.056],['2026-11-20',1.966],['2026-11-23',1.939]],
-    'QQQ': [['2026-11-04',687.120],['2026-11-05',647.050],['2026-11-06',656.100],['2026-11-09',679.350],['2026-11-10',674.760],['2026-11-11',690.380],['2026-11-12',688.170],['2026-11-13',679.890],['2026-11-16',661.750],['2026-11-17',656.950],['2026-11-18',659.510],['2026-11-19',645.040],['2026-11-20',608.450],['2026-11-23',651.030]]
-  }; // Completed-session closes verified through the 2026-11-23 A-share close and the 2026-11-23 US close; these are not IOPV.
+    '513390': [['2026-11-05',2.410],['2026-11-06',2.332],['2026-11-09',2.325],['2026-11-10',2.409],['2026-11-11',2.442],['2026-11-12',2.424],['2026-11-13',2.435],['2026-11-16',2.380],['2026-11-17',2.351],['2026-11-18',2.369],['2026-11-19',2.384],['2026-11-20',2.273],['2026-11-23',2.241],['2026-11-24',2.321]],
+    '159655': [['2026-11-05',1.998],['2026-11-06',1.936],['2026-11-09',1.949],['2026-11-10',1.995],['2026-11-11',2.001],['2026-11-12',1.999],['2026-11-13',2.004],['2026-11-16',1.970],['2026-11-17',1.937],['2026-11-18',1.941],['2026-11-19',1.941],['2026-11-20',1.854],['2026-11-23',1.845],['2026-11-24',1.898]],
+    '159501': [['2026-11-05',2.132],['2026-11-06',2.069],['2026-11-09',2.055],['2026-11-10',2.110],['2026-11-11',2.123],['2026-11-12',2.107],['2026-11-13',2.107],['2026-11-16',2.070],['2026-11-17',2.047],['2026-11-18',2.048],['2026-11-19',2.056],['2026-11-20',1.966],['2026-11-23',1.939],['2026-11-24',2.013]],
+    // QQQM 11/19 verified from Yahoo chart quote.close in America/New_York.
+    'QQQM': [['2026-11-17',270.42],['2026-11-18',271.58],['2026-11-19',265.64],['2026-11-20',251.23],['2026-11-23',267.97]]
+  }; // Completed closes through 2026-11-24 A shares / 2026-11-23 US; not IOPV. A-share qt and K-line responses agree (one source, two response formats).
   const map = new Map(sanitizeHistory(item, getStaticHistory(item), now).map(r => [r[0], r]));
   const mergeRow = row => {
     const old = map.get(row[0]);
@@ -28,10 +29,13 @@ function combineHistory(item, rows, now = new Date()) {
     map.set(row[0], old && row[2] === null && old[1] === row[1] ? [row[0], row[1], old[2]] : row);
   };
   sanitizeHistory(item, latestCloses[item.code] || [], now).forEach(mergeRow);
+  const verifiedDates = new Set(map.keys());
   try {
-    sanitizeHistory(item, JSON.parse(localStorage.getItem('etf-closes-v1-' + item.code) || '[]'), now).forEach(mergeRow);
+    sanitizeHistory(item, JSON.parse(localStorage.getItem('etf-closes-v1-' + item.code) || '[]'), now)
+      .filter(row => !map.has(row[0])).forEach(mergeRow);
   } catch { /* Corrupt or unavailable browser cache must not block verified closes. */ }
-  sanitizeHistory(item, rows, now).forEach(mergeRow);
+  // Live samples may supersede unverified cache dates, never a checked static/closing price.
+  sanitizeHistory(item, rows, now).filter(row => !verifiedDates.has(row[0])).forEach(mergeRow);
   return Array.from(map.values()).sort((a,b) => a[0].localeCompare(b[0]));
 }
 function buildHistoricalReferenceRows(rows, officialNavRows = []) {
@@ -108,9 +112,9 @@ function recordCompletedClose(item, quote, now = new Date()) {
 function readIopvArchive(item, now = new Date()) {
   // Actual Tencent responses captured during close patrols, not backfilled NAV.
   const verified = {
-    '513390': [['2026-11-16 15:10:20', 2.380, 2.0973], ['2026-11-17 15:08:26', 2.351, 2.0411], ['2026-11-18 15:10:37', 2.369, 2.0261], ['2026-11-19 15:11:05', 2.384, 2.0343], ['2026-11-20 15:09:55', 2.273, 2.0342], ['2026-11-23 15:07:33', 2.241, 1.8791]],
-    '159655': [['2026-11-16 15:10:15', 1.970, 1.8370], ['2026-11-17 15:08:30', 1.937, 1.8016], ['2026-11-18 15:10:18', 1.941, 1.7822], ['2026-11-19 15:11:00', 1.941, 1.7778], ['2026-11-20 15:09:48', 1.854, 1.7779], ['2026-11-23 15:07:33', 1.845, 1.6804]],
-    '159501': [['2026-11-16 15:10:00', 2.070, 1.7555], ['2026-11-17 15:08:30', 2.047, 1.7085], ['2026-11-18 15:10:15', 2.048, 1.6959], ['2026-11-19 15:10:54', 2.056, 1.7026], ['2026-11-20 15:09:45', 1.966, 1.7026], ['2026-11-23 15:07:30', 1.939, 1.5724]]
+    '513390': [['2026-11-16 15:10:20', 2.380, 2.0973], ['2026-11-17 15:08:26', 2.351, 2.0411], ['2026-11-18 15:10:37', 2.369, 2.0261], ['2026-11-19 15:11:05', 2.384, 2.0343], ['2026-11-20 15:09:55', 2.273, 2.0342], ['2026-11-23 15:07:33', 2.241, 1.8791], ['2026-11-24 15:21:23', 2.321, 2.0074]],
+    '159655': [['2026-11-16 15:10:15', 1.970, 1.8370], ['2026-11-17 15:08:30', 1.937, 1.8016], ['2026-11-18 15:10:18', 1.941, 1.7822], ['2026-11-19 15:11:00', 1.941, 1.7778], ['2026-11-20 15:09:48', 1.854, 1.7779], ['2026-11-23 15:07:33', 1.845, 1.6804], ['2026-11-24 15:21:30', 1.898, 1.7568]],
+    '159501': [['2026-11-16 15:10:00', 2.070, 1.7555], ['2026-11-17 15:08:30', 2.047, 1.7085], ['2026-11-18 15:10:15', 2.048, 1.6959], ['2026-11-19 15:10:54', 2.056, 1.7026], ['2026-11-20 15:09:45', 1.966, 1.7026], ['2026-11-23 15:07:30', 1.939, 1.5724], ['2026-11-24 15:21:30', 2.013, 1.6796]]
   };
   let local = [];
   try { local = JSON.parse(localStorage.getItem('etf-iopv-v1-' + item.code) || '[]'); } catch {}
@@ -151,7 +155,8 @@ async function loadHistoryAndRender(item) {
   renderStaticHistory(item);
   const liveNavRows = await loadOfficialNavHistory(item);
   const cached = typeof getLatestStaticNavSnapshot === 'function' ? getLatestStaticNavSnapshot(item.code) : null;
-  const navMap = new Map(cached ? [[cached.date, cached.nav]] : []);
+  const staticNavRows = typeof getStaticPublishedNavRows === 'function' ? getStaticPublishedNavRows(item.code) : [];
+  const navMap = new Map(staticNavRows.length ? staticNavRows : (cached ? [[cached.date, cached.nav]] : []));
   liveNavRows.forEach(row => navMap.set(row[0], row[1]));
   const officialNavRows = Array.from(navMap).sort((a,b) => a[0].localeCompare(b[0]));
   item.officialNavRows = officialNavRows;
