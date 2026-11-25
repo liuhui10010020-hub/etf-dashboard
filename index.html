@@ -153,7 +153,7 @@
   <div class="note">
     <strong>数据说明：</strong>
     ① <b>现价 / 涨跌幅</b>：东方财富 push2 与腾讯财经双源校验时间及有效性，择新报价，源时间在卡片标注；A股交易时段 9:30–11:30、13:00–15:00，每30秒刷新。QQQM 使用美东时间标注最新报价。<br>
-    ② <b>实时估值(IOPV)</b>：采用腾讯财经 IOPV 字段；该字段不提供独立估值时间，卡片标注同行情响应的时间。停牌时该时间是接口响应时间，不是成交时间；即使IOPV有效，停牌参考价计算的溢价仍标为“参考溢价率”，不代表可成交价格。收盘后使用当日实采IOPV计算并明确标注“收盘溢价率”；缺少当日实采时才使用带日期的已公布净值参考值，不冒充盘中实时估值。<br>
+    ② <b>实时估值(IOPV)</b>：采用腾讯财经 IOPV 字段；该字段不提供独立估值时间，卡片标注同行情响应的时间。停牌时该时间是接口响应时间，不是成交时间；即使IOPV有效，停牌参考价计算的溢价仍标为“参考溢价率”，不代表可成交价格。停牌期间当日 IOPV 仍在实时更新时，用该 IOPV 计算参考溢价率（标注“停牌·实时IOPV”），仅当 IOPV 非当日或已超时才回退带日期的已公布净值。收盘后使用当日实采IOPV计算并明确标注“收盘溢价率”；缺少当日实采时才使用带日期的已公布净值参考值，不冒充盘中实时估值。<br>
     ③ <b>实时溢价率</b> = 有效现价 / 实时IOPV − 1；任一输入非实时则标为“参考溢价率”。<b>持仓盈亏</b> = 现价×份额−买入金额；表内折算成本 = 买入金额/份额，原始记录成交价保留在单元格提示中；<b>加权买入溢价率</b>使用原始买入溢价率按买入金额加权，不随今日IOPV变化。<br>
     ④ 无有效成交、报价超时或接口失败时显式标注参考状态；今开 / 最高 / 最低缺失保留“未提供”，不填0，也不捏造为最新价。汇总中如含参考报价，会标注“含参考报价估算”；缺任一持仓价则不显示不完整的总盈亏。<br>
     ⑤ <b>图表口径</b>：蓝线只显示已完成交易日的收盘价，日期与缓存来源明确标注；黄线为历史收盘价相对东方财富已公布基金净值计算的<b>历史参考溢价率</b>，若QDII净值尚未披露，则沿用最近一期已公布净值作参考并在来源中标注，覆盖完整历史区间但不冒充实时IOPV；紫色点线仅记录已核验实采及当前浏览器实采的有效报价与实时IOPV溢价，不补造未采集日期。QQQM 是美国上市ETF，不套用A股QDII的IOPV溢价口径。<br>
@@ -219,7 +219,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
       "159655": [["2026-11-05", 1.998, 11.857574739670817], ["2026-11-06", 1.936, 8.03571428571428], ["2026-11-09", 1.949, 6.212534059945507], ["2026-11-10", 1.995, 9.225294278675067], ["2026-11-11", 2.001, 8.115409552625884], ["2026-11-12", 1.999, 8.417398850200675], ["2026-11-13", 2.004, 9.090909090909083], ["2026-11-16", 1.970, 9.353316680543976], ["2026-11-17", 1.937, 8.704192154441891], ["2026-11-18", 1.941, 9.173744305079023], ["2026-11-19", 1.941, 9.173744305079023], ["2026-11-20", 1.854, 4.280330727262505]],
       "159501": [["2026-11-05", 2.132, 27.420511594549367], ["2026-11-06", 2.069, 21.98573197335063], ["2026-11-09", 2.055, 17.154096117667184], ["2026-11-10", 2.110, 21.048706327806777], ["2026-11-11", 2.123, 19.035604149144937], ["2026-11-12", 2.107, 18.517268534143327], ["2026-11-13", 2.107, 20.022785531187704], ["2026-11-16", 2.070, 21.173096060410934], ["2026-11-17", 2.047, 20.709989385540762], ["2026-11-18", 2.048, 20.28662046282157], ["2026-11-19", 2.056, 20.756490074004464], ["2026-11-20", 1.966, 15.470456948196887]],
       // QQQM 11/19: Yahoo chart regular-session quote.close (not adjusted or extended-hours).
-      "QQQM": [["2026-11-17", 270.42, null], ["2026-11-18", 271.58, null], ["2026-11-19", 265.64, null], ["2026-11-20", 251.23, null], ["2026-11-23", 267.97, null]]
+      "QQQM": [["2026-11-17", 270.42, null], ["2026-11-18", 271.58, null], ["2026-11-19", 265.64, null], ["2026-11-20", 251.23, null], ["2026-11-23", 267.97, null], ["2026-11-24", 262.78, null]]
     };
 
     // Keep the existing QQQM baseline; never mix QQQ prices into this series.
@@ -241,9 +241,9 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   }
 })();
 </script>
-<script src="quote-integrity.js?v=20261124-close"></script>
-<script src="history-integrity.js?v=20261124-close"></script>
-<script src="extended-quotes.js?v=20261124-close"></script>
+<script src="quote-integrity.js?v=20261125-open"></script>
+<script src="history-integrity.js?v=20261125-open"></script>
+<script src="extended-quotes.js?v=20261125-open"></script>
 <script>
 window.onerror = function(msg, url, line, _col, _err) { console.error("Global JS Error:", msg, "at line", line); };
 /* global STATIC_HIST_DATA, echarts */
@@ -298,17 +298,17 @@ PORTFOLIO.forEach(p=>{
   }
 });
 
-// Published NAV verified from Eastmoney pingzhongdata on 2026-11-24 (x=1795104000000).
+// Published NAV verified from Eastmoney pingzhongdata on 2026-11-25 (latest disclosure 2026-11-23).
 // Preserve prior disclosure dates for as-of history; a new NAV must not backfill an old date.
 const DATED_PUBLISHED_NAV_CACHE = {
-  '513390': [['2026-11-19',1.9900],['2026-11-20',1.8789]],
-  '159655': [['2026-11-19',1.7421],['2026-11-20',1.6800]],
-  '159501': [['2026-11-19',1.6655],['2026-11-20',1.5723]]
+  '513390': [['2026-11-19',1.9900],['2026-11-20',1.8789],['2026-11-23',2.0069]],
+  '159655': [['2026-11-19',1.7421],['2026-11-20',1.6800],['2026-11-23',1.7569]],
+  '159501': [['2026-11-19',1.6655],['2026-11-20',1.5723],['2026-11-23',1.6796]]
 };
 const PUBLISHED_NAV_CACHE = {
-  '513390': {date:'2026-11-20', nav:1.8789},
-  '159655': {date:'2026-11-20', nav:1.6800},
-  '159501': {date:'2026-11-20', nav:1.5723}
+  '513390': {date:'2026-11-23', nav:2.0069},
+  '159655': {date:'2026-11-23', nav:1.7569},
+  '159501': {date:'2026-11-23', nav:1.6796}
 };
 function getStaticPublishedNavRows(code){
   return DATED_PUBLISHED_NAV_CACHE[code] || [];
@@ -358,8 +358,10 @@ function getFallbackNavLabel(p){
 function navTag(p){
   const isLatest = !!p.navIsLatest;
   const isCloseIopv = !!p.navIsCloseIopv;
-  const color = (isLatest || isCloseIopv) ? 'var(--live)' : 'var(--txt3)';
-  const label = isLatest ? '腾讯IOPV' : (isCloseIopv ? '收盘IOPV' : getFallbackNavLabel(p));
+  const isHaltIopv = !isLatest && !isCloseIopv && !!p.navIsHaltIopv;
+  const color = (isLatest || isCloseIopv) ? 'var(--live)' : (isHaltIopv ? 'var(--gold)' : 'var(--txt3)');
+  const label = isLatest ? '腾讯IOPV' : (isCloseIopv ? '收盘IOPV' :
+    (isHaltIopv ? '停牌·实时IOPV' : getFallbackNavLabel(p)));
   return `${fmt(p.nav,4)} <span style="color:${color};font-size:10px" id="navd-${p.code}">${label}</span>`;
 }
 function updateNavDisplay(p){
@@ -530,7 +532,9 @@ function applyLive(p, d){
     if(prEl) {
       prEl.textContent=(prem>=0?'+':'')+pct(prem);
       prEl.className='v ' + (reference ? '' : 'live ') + cls(prem);
-      prEl.title = d.stale ? '报价或IOPV为参考数据，不代表可成交的实时溢价率' :
+      prEl.title = d.stale ? (p.navIsHaltIopv
+          ? '停牌期间：现价停留在昨收、不可成交；溢价率 = 昨收 / 当日实时IOPV − 1，仅供参考'
+          : '报价或IOPV为参考数据，不代表可成交的实时溢价率') :
         (p.navIsLatest ? '现价 / 腾讯实时IOPV - 1' : '现价 / 当日收盘IOPV - 1（收盘复盘口径）');
     }
     const pfEl=$(`#pf-${c}`), pltEl=$(`#plt-${c}`);
@@ -716,19 +720,30 @@ function fetchAll(){
       const txCandidate = tx ? createQuoteCandidate(p, tx, 'tencent') : null;
       const badQuote = !txCandidate || txCandidate.stale || txCandidate.suspended ||
         txCandidate.noTrades || txCandidate.missingPrice;
-      p.navIsLatest = !badQuote && isIopvCurrent(p, iopv, quoteTime);
+      const sessionDate = getMarketDate(p, new Date());
+      const bj = getBeijingNow();
+      const afterClose = bj.getUTCHours() * 60 + bj.getUTCMinutes() >= 900;
+      const quoteMinutes = Number(quoteTime.slice(11,13)) * 60 + Number(quoteTime.slice(14,16));
+      const stamp = Date.parse(quoteTime.replace(' ', 'T') + '+08:00');
+      const sameDayIopv = validPositive(iopv) && quoteTime.slice(0,10) === sessionDate &&
+        Number.isFinite(stamp) && stamp <= Date.now() + 120000;
       p.navIsCloseIopv = false;
+      p.navIsHaltIopv = false;
+      p.navIsLatest = !badQuote && isIopvCurrent(p, iopv, quoteTime);
+      // 停牌/无成交时价格停留在昨收，但当日 IOPV 仍随标的实时更新：用它计算“参考溢价率”，
+      // 比回退到数日前已披露净值更接近真实溢价。仅接受当日 IOPV：盘中须新鲜，收盘后取当日最后一笔。
+      const haltIopv = !p.isUsStock && !p.navIsLatest && badQuote && sameDayIopv &&
+        (afterClose ? quoteMinutes >= 900 : isIopvCurrent(p, iopv, quoteTime));
       if (p.navIsLatest) {
         p.nav = iopv;
         p.navFallbackDate = quoteTime;
+      } else if (haltIopv) {
+        p.nav = iopv;
+        p.navFallbackDate = quoteTime;
+        p.navIsHaltIopv = true;
       } else if (!p.isUsStock) {
         // 收盘后腾讯 IOPV 不再算“实时”，但当日收盘 IOPV 仍是正确的溢价基准；缺失时才回退已披露净值。
-        const sessionDate = getMarketDate(p, new Date());
         const archived = typeof getArchivedCloseIopv === 'function' ? getArchivedCloseIopv(p, sessionDate) : null;
-        const bj = getBeijingNow();
-        const afterClose = bj.getUTCHours() * 60 + bj.getUTCMinutes() >= 900;
-        const quoteMinutes = Number(quoteTime.slice(11,13)) * 60 + Number(quoteTime.slice(14,16));
-        const stamp = Date.parse(quoteTime.replace(' ', 'T') + '+08:00');
         const sessionIopv = !badQuote && afterClose && validPositive(iopv) && quoteTime.slice(0,10) === sessionDate &&
           quoteMinutes >= 900 && Number.isFinite(stamp) && stamp <= Date.now() + 120000 ? iopv : null;
         const closeIopv = afterClose ? (sessionIopv || (archived ? archived[2] : null)) : null;
@@ -867,10 +882,10 @@ function renderChart(item, data) {
   const historicalPremiumMap = new Map(priceRows
     .filter(row => Number.isFinite(row[2]))
     .map(row => [row[0], row[2]]));
-  const iopvPremiumMap = new Map(observed.map(row => [
-    row[0].slice(0, 10),
-    (row[1] / row[2] - 1) * 100
-  ]));
+  const iopvPremiumMap = new Map(observed
+    .map(row => [row[0].slice(0, 10), (row[1] / row[2] - 1) * 100])
+    // 仅保留已有收盘价的日子：未收盘的当日实采点不下沉到“已完成交易日”图表，避免坐标轴多出空日期。
+    .filter(([date]) => priceMap.has(date)));
   const dates = Array.from(new Set([
     ...priceRows.map(row => row[0]),
     ...Array.from(iopvPremiumMap.keys())
@@ -913,8 +928,7 @@ function renderChart(item, data) {
       {
         type: 'value', name: '溢价率(%)', scale: true,
         splitLine: { show: false },
-        min: value => Math.floor(value.min - 1),
-        max: value => Math.ceil(value.max + 1),
+        // 交给 ECharts 生成等距刻度，避免首尾手动 min/max 造成刻度间距不均、误读比例。
         splitNumber: 4,
         axisLabel: { show: true, color: '#9aa8b8', margin: 12, formatter: value => `${Number(value).toFixed(0)}%` }
       }
