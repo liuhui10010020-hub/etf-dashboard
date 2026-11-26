@@ -115,7 +115,7 @@ assert.equal((2.38*202100+1.958*74500-650099).toFixed(0),'-23230');
 assert.equal(run('weightedBuyPremium([{amt:150000,prem:9.81},{amt:49500,prem:9.97},{amt:100000,prem:10.47},{amt:100000,prem:9.38},{amt:100000,prem:9.59}]).toFixed(2)'), '9.83');
 assert(html.includes('--（${unavailable}）'));
 assert(html.includes('typeof getExtendedSnapshot'));
-assert.equal((html.match(/src="(?:quote-integrity|history-integrity|extended-quotes)\.js\?v=20261125-close"/g)||[]).length,3);
+assert.equal((html.match(/src="(?:quote-integrity|history-integrity|extended-quotes)\.js\?v=20261126-am"/g)||[]).length,3);
 assert(!html.includes('price:684.000'));
 assert(html.includes("code:'QQQM', secid:'105.QQQM'") && !html.includes("code:'QQQ',"));
 assert.equal(run('getStaticHistory({code:"QQQ"}).length'),0);
@@ -280,6 +280,17 @@ const qqqmNov25 = JSON.parse(run('JSON.stringify(combineHistory(us,[],new Date("
 assert.equal(qqqmNov25.length,226);
 assert.deepEqual(qqqmNov25.at(-1),['2026-11-24',262.78,null]);
 assert.equal(run('combineHistory(us,[],new Date("2026-11-25T02:10:00Z")).some(r=>r[0]==="2026-11-25")'),false);
+// 11/26 cold start: yesterday's US regular close must not depend on a browser being open at 16:00.
+const qqqmNov26 = JSON.parse(run('JSON.stringify(combineHistory(us,[],new Date("2026-11-26T02:10:00Z")))'));
+assert.equal(qqqmNov26.length,227);
+assert.deepEqual(qqqmNov26.at(-1),['2026-11-25',261.05,null]);
+assert.equal(run('combineHistory(us,[],new Date("2026-11-25T20:30:00Z")).some(r=>r[0]==="2026-11-25")'),false);
+assert.deepEqual(JSON.parse(run('JSON.stringify(getStaticHistory(us).at(-1))')),['2026-11-25',261.05,null]);
+storage.set('etf-closes-v1-QQQM','[["2026-11-25",999]]');
+assert.deepEqual(JSON.parse(run('JSON.stringify(combineHistory(us,[["2026-11-25",888]],new Date("2026-11-26T02:10:00Z")).at(-1))')),['2026-11-25',261.05,null]);
+storage.clear();
+// Thanksgiving has no new completed US trading session; never fabricate a holiday close.
+assert.equal(run('combineHistory(us,[],new Date("2026-11-26T22:10:00Z")).at(-1)[0]'),'2026-11-25');
 // Polluted old cache and live rows cannot replace any verified static or latest close.
 for (const [code,price] of patrol) {
   const item = `{code:"${code}",isUsStock:false}`;
