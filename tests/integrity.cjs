@@ -31,7 +31,7 @@ for (const file of ['quote-integrity.js','history-integrity.js','extended-quotes
   vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'), context);
 }
 const run = expression => vm.runInContext(expression, context);
-run('var cn={code:"513390",isUsStock:false}; var us={code:"QQQM",isUsStock:true}; var now=new Date("2026-11-17T02:10:00Z"); var raw={f43:2.38,f60:2.38,f46:0,f44:0,f45:0,f47:0,status:"S",quoteTime:"20261117101000"}');
+run('var cn={code:"513390",isUsStock:false}; var us={code:"QQQ",isUsStock:true}; var now=new Date("2026-11-17T02:10:00Z"); var raw={f43:2.38,f60:2.38,f46:0,f44:0,f45:0,f47:0,status:"S",quoteTime:"20261117101000"}');
 run('var stopped=createQuoteCandidate(cn,raw,"tencent",now)');
 assert.equal(run('stopped.suspended'), true);
 assert.equal(run('stopped.stale'), true);
@@ -69,8 +69,8 @@ run('us.extSnapshot={price:684,time:"2026-11-11 20:01:00",tag:"after"}');
 assert.equal(run('getExtendedSnapshot(us,regular,now)'), null);
 // Cold browser: all completed histories are present without any localStorage.
 assert.equal(storage.size, 0);
-for (const [code,price,count] of [['513390',2.38,209],['159655',1.97,209],['159501',2.07,209],['QQQM',272.49,220]]) {
-  const rows = JSON.parse(run(`JSON.stringify(combineHistory({code:'${code}',isUsStock:${code==='QQQM'}},[],now))`));
+for (const [code,price,count] of [['513390',2.38,209],['159655',1.97,209],['159501',2.07,209],['QQQ',661.75,220]]) {
+  const rows = JSON.parse(run(`JSON.stringify(combineHistory({code:'${code}',isUsStock:${code==='QQQ'}},[],now))`));
   assert.equal(rows.length, count);
   assert.equal(rows.at(-1)[0], '2026-11-16');
   assert.equal(rows.at(-1)[1], price);
@@ -79,10 +79,10 @@ for (const [code,price,count] of [['513390',2.38,209],['159655',1.97,209],['1595
 }
 assert.equal(run('combineHistory(us,[],new Date("2026-11-16T19:59:00Z")).at(-1)[0]'), '2026-11-13');
 const navCache = vm.runInContext('(' + html.match(/const PUBLISHED_NAV_CACHE = (\{[\s\S]*?\});/)[1] + ')', vm.createContext());
-for (const [code,nav12,nav13,nav20,nav23] of [['513390',2.1238,2.0974,1.8789,2.0069],['159655',1.8438,1.837,1.6800,1.7569],['159501',1.7778,1.7555,1.5723,1.6796]]) {
-  // Latest disclosure is 11/23; 11/20 stays available as an as-of reference date.
-  assert.equal(navCache[code].date,'2026-11-23');
-  assert.equal(navCache[code].nav,nav23);
+for (const [code,nav12,nav13,nav24] of [['513390',2.1238,2.0974,1.9667],['159655',1.8438,1.837,1.7474],['159501',1.7778,1.7555,1.6459]]) {
+  // Latest disclosure is 11/24; earlier values remain available as as-of references.
+  assert.equal(navCache[code].date,'2026-11-24');
+  assert.equal(navCache[code].nav,nav24);
   const rows = JSON.parse(run(`JSON.stringify(getStaticHistory({code:'${code}'}))`));
   for(const [date,nav] of [['2026-11-12',nav12],['2026-11-13',nav13]]) {
     const row=rows.find(r=>r[0]===date);
@@ -115,12 +115,13 @@ assert.equal((2.38*202100+1.958*74500-650099).toFixed(0),'-23230');
 assert.equal(run('weightedBuyPremium([{amt:150000,prem:9.81},{amt:49500,prem:9.97},{amt:100000,prem:10.47},{amt:100000,prem:9.38},{amt:100000,prem:9.59}]).toFixed(2)'), '9.83');
 assert(html.includes('--（${unavailable}）'));
 assert(html.includes('typeof getExtendedSnapshot'));
-assert.equal((html.match(/src="(?:quote-integrity|history-integrity|extended-quotes)\.js\?v=20261126-am"/g)||[]).length,3);
+assert.equal((html.match(/src="(?:quote-integrity|history-integrity|extended-quotes)\.js\?v=20261126-close"/g)||[]).length,3);
 assert(!html.includes('price:684.000'));
-assert(html.includes("code:'QQQM', secid:'105.QQQM'") && !html.includes("code:'QQQ',"));
-assert.equal(run('getStaticHistory({code:"QQQ"}).length'),0);
-assert(!html.includes('HISTORY_QQQ'));
-assert(!/\bQQQ\b/.test(html.slice(0,html.indexOf('<script>'))));
+assert(html.includes("code:'QQQ', secid:'105.QQQ'") && !html.includes("code:'QQQM'"));
+assert.equal(run('getStaticHistory({code:"QQQ"}).length'),227);
+assert.equal(run('getStaticHistory({code:"QQQM"}).length'),0);
+assert(html.includes('HISTORY_QQQ'));
+assert(!/QQQM/.test(html.slice(0,html.indexOf('<script>'))) && /\bQQQ\b/.test(html.slice(0,html.indexOf('<script>'))));
 assert(html.includes('--up:#ef4444') && html.includes('--down:#22c55e'));
 // November 19 cold start: completed closes and actual November 18 IOPV require no browser cache.
 run('var morningNow=new Date("2026-11-19T02:10:00Z")');
@@ -128,16 +129,16 @@ for (const [code,price,count,iopv,nav16,nav17,nav18] of [
   ['513390',2.369,211,2.0261,2.0411,2.0261,2.0342],
   ['159655',1.941,211,1.7822,1.8015,1.7819,1.7779],
   ['159501',2.048,211,1.6959,1.7083,1.6958,1.7026],
-  ['QQQM',271.58,222,null,null,null,null]
+  ['QQQ',659.51,222,null,null,null,null]
 ]) {
-  const rows = JSON.parse(run(`JSON.stringify(combineHistory({code:'${code}',isUsStock:${code==='QQQM'}},[],morningNow))`));
+  const rows = JSON.parse(run(`JSON.stringify(combineHistory({code:'${code}',isUsStock:${code==='QQQ'}},[],morningNow))`));
   assert.equal(rows.length,count);
   assert.equal(rows.at(-1)[0],'2026-11-18');
   assert.equal(rows.at(-1)[1],price);
   assert.equal(new Set(rows.map(r=>r[0])).size,count);
   assert(!rows.some(r=>r[0]==='2026-11-19'));
-  if (code==='QQQM') {
-    assert.equal(rows.at(-2)[1],270.42);
+  if (code==='QQQ') {
+    assert.equal(rows.at(-2)[1],656.95);
     assert(rows.every(r=>r[2]===null));
     continue;
   }
@@ -172,7 +173,7 @@ for (const [code,price,count,iopv,nav18] of [
   assert.equal(samples.at(-1)[1],price);
   assert.equal(samples.at(-1)[2],iopv);
 }
-assert.equal(JSON.parse(run('JSON.stringify(combineHistory({code:"QQQM",isUsStock:true},[],nextMorningNow))')).at(-1)[0],'2026-11-19');
+assert.equal(JSON.parse(run('JSON.stringify(combineHistory({code:"QQQ",isUsStock:true},[],nextMorningNow))')).at(-1)[0],'2026-11-19');
 // November 23 morning: retain Friday closes and both dated 11/19 and 11/20 NAV references.
 run('var mondayMorningNow=new Date("2026-11-23T02:10:00Z")');
 for (const [code,price,count,nav19,nav20] of [
@@ -195,8 +196,8 @@ for (const [code,price,count,nav19,nav20] of [
 const qqqmMonday = JSON.parse(run('JSON.stringify(combineHistory(us,[],mondayMorningNow))'));
 assert.equal(qqqmMonday.length,224);
 assert.equal(qqqmMonday.at(-1)[0],'2026-11-20');
-assert.equal(qqqmMonday.at(-1)[1],251.23);
-assert.equal(qqqmMonday.at(-2)[1],265.64);
+assert.equal(qqqmMonday.at(-1)[1],608.45);
+assert.equal(qqqmMonday.at(-2)[1],645.04);
 // November 20 close patrol: A-share completed closes and close IOPV samples should both advance to 11-20.
 run('var closeNow2=new Date("2026-11-20T07:12:00Z")');
 for (const [code,price,iopv,nav18] of [
@@ -270,24 +271,24 @@ for (const [code,price,iopv,time,premium] of nov25Patrol) {
 for (const instant of ['2026-11-23T22:00:00Z','2026-11-24T07:25:00Z']) {
   const rows = JSON.parse(run(`JSON.stringify(combineHistory(us,[],new Date("${instant}")))`));
   assert.equal(rows.length,225);
-  assert.deepEqual(rows.at(-1),['2026-11-23',267.97,null]);
-  assert.equal(rows.find(r=>r[0]==='2026-11-19')[1],265.64);
-  assert.equal(rows.find(r=>r[0]==='2026-11-20')[1],251.23);
+  assert.deepEqual(rows.at(-1),['2026-11-23',651.03,null]);
+  assert.equal(rows.find(r=>r[0]==='2026-11-19')[1],645.04);
+  assert.equal(rows.find(r=>r[0]==='2026-11-20')[1],608.45);
   assert(rows.every(r=>r[2]===null));
 }
 // 11/25 morning cold start: the completed 11/24 US regular session must be present without any cache.
 const qqqmNov25 = JSON.parse(run('JSON.stringify(combineHistory(us,[],new Date("2026-11-25T02:10:00Z")))'));
 assert.equal(qqqmNov25.length,226);
-assert.deepEqual(qqqmNov25.at(-1),['2026-11-24',262.78,null]);
+assert.deepEqual(qqqmNov25.at(-1),['2026-11-24',638.10,null]);
 assert.equal(run('combineHistory(us,[],new Date("2026-11-25T02:10:00Z")).some(r=>r[0]==="2026-11-25")'),false);
 // 11/26 cold start: yesterday's US regular close must not depend on a browser being open at 16:00.
 const qqqmNov26 = JSON.parse(run('JSON.stringify(combineHistory(us,[],new Date("2026-11-26T02:10:00Z")))'));
 assert.equal(qqqmNov26.length,227);
-assert.deepEqual(qqqmNov26.at(-1),['2026-11-25',261.05,null]);
+assert.deepEqual(qqqmNov26.at(-1),['2026-11-25',633.93,null]);
 assert.equal(run('combineHistory(us,[],new Date("2026-11-25T20:30:00Z")).some(r=>r[0]==="2026-11-25")'),false);
-assert.deepEqual(JSON.parse(run('JSON.stringify(getStaticHistory(us).at(-1))')),['2026-11-25',261.05,null]);
-storage.set('etf-closes-v1-QQQM','[["2026-11-25",999]]');
-assert.deepEqual(JSON.parse(run('JSON.stringify(combineHistory(us,[["2026-11-25",888]],new Date("2026-11-26T02:10:00Z")).at(-1))')),['2026-11-25',261.05,null]);
+assert.deepEqual(JSON.parse(run('JSON.stringify(getStaticHistory(us).at(-1))')),['2026-11-25',633.93,null]);
+storage.set('etf-closes-v1-QQQ','[["2026-11-25",999]]');
+assert.deepEqual(JSON.parse(run('JSON.stringify(combineHistory(us,[["2026-11-25",888]],new Date("2026-11-26T02:10:00Z")).at(-1))')),['2026-11-25',633.93,null]);
 storage.clear();
 // Thanksgiving has no new completed US trading session; never fabricate a holiday close.
 assert.equal(run('combineHistory(us,[],new Date("2026-11-26T22:10:00Z")).at(-1)[0]'),'2026-11-25');
@@ -301,13 +302,13 @@ for (const [code,price] of patrol) {
   assert.equal(polluted.at(-1)[1],price);
   storage.clear();
 }
-storage.set('etf-closes-v1-QQQM',JSON.stringify([['2026-11-19',645.04],['2026-11-23',651.03]]));
-assert.equal(run(`combineHistory(us,[["2026-11-23",651.03]],${atPatrol}).at(-1)[1]`),267.97);
+storage.set('etf-closes-v1-QQQ',JSON.stringify([['2026-11-19',1],['2026-11-23',2]]));
+assert.equal(run(`combineHistory(us,[["2026-11-23",3]],${atPatrol}).at(-1)[1]`),651.03);
 storage.clear();
 // Only missing dates can be filled by cache; a live sample may update an unverified date.
-storage.set('etf-closes-v1-513390','[["2026-11-26",2.4]]');
-assert.equal(run('combineHistory(cn,[["2026-11-26",2.5]],new Date("2026-11-26T07:25:00Z")).at(-1)[1]'),2.5);
-assert.equal(run('combineHistory(cn,[],new Date("2026-11-26T07:25:00Z")).at(-1)[1]'),2.4);
+storage.set('etf-closes-v1-513390','[["2026-11-27",2.4]]');
+assert.equal(run('combineHistory(cn,[["2026-11-27",2.5]],new Date("2026-11-27T07:25:00Z")).at(-1)[1]'),2.5);
+assert.equal(run('combineHistory(cn,[],new Date("2026-11-27T07:25:00Z")).at(-1)[1]'),2.4);
 storage.clear();
 storage.set('etf-closes-v1-513390','{broken');
 assert.equal(run(`combineHistory(cn,[],${atPatrol}).at(-1)[1]`),2.321);
@@ -386,7 +387,9 @@ assert.equal(run('selectNavForTest(cn,{"513390":{...trading,status:"S",iopv:9,qu
 assert.equal(run('selectNavForTest(cn,{"513390":{...trading,status:"S",iopv:9,quoteTime:"2026-11-25 15:21:23"}}).navIsHaltIopv'),true);
 assert.equal(run('selectNavForTest(cn,{"513390":{...trading,status:"S",iopv:null,quoteTime:"2026-11-25 15:21:23"}}).nav'),1.9667);
 fixedTime = Date.parse('2026-11-26T07:25:00Z');
-assert.equal(run('selectNavForTest(cn,{"513390":{...trading,status:"S",iopv:null,quoteTime:"2026-11-26 15:21:23"}}).nav'),2.0069);
+assert.equal(run('selectNavForTest(cn,{"513390":{...trading,status:"S",iopv:null,quoteTime:"2026-11-26 15:21:23"}}).nav'),1.9535);
+fixedTime = Date.parse('2026-11-27T07:25:00Z');
+assert.equal(run('selectNavForTest(cn,{"513390":{...trading,status:"S",iopv:null,quoteTime:"2026-11-27 15:21:23"}}).nav'),1.9667);
 context.Date = RealDate;
 // A sparse NAV before a price date may be used; later NAVs must never leak backwards.
 const sparse=JSON.parse(run('JSON.stringify(buildHistoricalReferenceRows([["2026-11-13",2,8],["2026-11-16",2.38,null],["2026-11-18",2.369,null]],[["2026-11-17",2.0261],["2026-11-15",2.0411]]))'));
@@ -410,5 +413,34 @@ run('loadOfficialNavHistory(cn)').then(async rows=>{
     assert(Math.abs(row19[2]-(row19[1]/nav19-1)*100)<1e-9);
     assert(Math.abs(row20[2]-(row20[1]/nav20-1)*100)<1e-9);
   }
-  console.log(`PASS: ${assertionCount} assertions; syntax, QQQM anti-regression, cold-browser closes through 11/25, actual IOPV, polluted cache, suspension/no-trades, dated NAV/as-of premiums, isolated NAV feeds and holdings`);
+  console.log(`PASS: ${assertionCount} assertions; syntax, QQQ anti-regression, cold-browser closes through 11/25, actual IOPV, polluted cache, suspension/no-trades, dated NAV/as-of premiums, isolated NAV feeds and holdings`);
 }).catch(error=>{console.error(error);process.exitCode=1;});
+
+// November 26 close: source-verified values survive a cold browser and polluted caches.
+for (const [code,price,iopv,time,roundedPremium,nav24] of [
+  ['513390',2.271,1.9535,'15:09:01','16.25',1.9667],
+  ['159655',1.873,1.7456,'15:08:51','7.30',1.7474],
+  ['159501',1.964,1.6349,'15:08:39','20.13',1.6459]
+]) {
+  storage.clear();
+  const item = `{code:"${code}",isUsStock:false}`;
+  const atClose = 'new Date("2026-11-26T07:20:00Z")';
+  const rows = JSON.parse(run(`JSON.stringify(combineHistory(${item},[],${atClose}))`));
+  assert.equal(rows.length,217);
+  assert.deepEqual(rows.at(-1).slice(0,2),['2026-11-26',price]);
+  const observed = JSON.parse(run(`JSON.stringify(getArchivedCloseIopv(${item},"2026-11-26",${atClose}))`));
+  assert.deepEqual(observed,[`2026-11-26 ${time}`,price,iopv]);
+  assert.equal(((price/iopv-1)*100).toFixed(2),roundedPremium);
+  assert.equal(run(`getArchivedCloseIopv(${item},"2026-11-26",new Date("2026-11-26T07:00:00Z"))`),null);
+  assert.equal(run(`combineHistory(${item},[],new Date("2026-11-26T06:59:00Z")).at(-1)[0]`),'2026-11-25');
+  const reference = JSON.parse(run(`JSON.stringify(buildHistoricalReferenceRows(combineHistory(${item},[],${atClose}),getStaticPublishedNavRows("${code}")).at(-1))`));
+  assert(Math.abs(reference[2]-(price/nav24-1)*100)<1e-9);
+  assert.notEqual(reference[2].toFixed(2),roundedPremium); // Published NAV is not IOPV.
+  storage.set('etf-closes-v1-'+code,'[["2026-11-26",99]]');
+  assert.deepEqual(JSON.parse(run(`JSON.stringify(combineHistory(${item},[["2026-11-26",88]],${atClose}).at(-1))`)),rows.at(-1));
+}
+storage.clear();
+assert(html.includes('<span class="${cls(d.f170)}">${fmt(price,3)}</span>'));
+assert(html.includes('成本盈亏 ${arrow(vsCost)}'));
+assert.equal(run('combineHistory(us,[],new Date("2026-11-26T22:00:00Z")).at(-1)[0]'),'2026-11-25');
+assert.equal(run('combineHistory(us,[],new Date("2026-11-26T22:00:00Z")).at(-1)[1]'),633.93);
