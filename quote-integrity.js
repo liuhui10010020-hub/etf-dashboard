@@ -1,6 +1,46 @@
 /* Shared, timezone-independent quote validation. Missing values are never fabricated. */
 /* global fmt */
 /* exported fmtMetric, isIopvCurrent, createQuoteCandidate, pickBestQuote, weightedBuyPremium, tradeProfit, quoteNote */
+const ETF_TARGET_CODES = Object.freeze(['513390', '159655', '159501', 'QQQM']);
+// Nasdaq/NYSE published US equity calendars; all dates and cutoffs are New York local.
+// https://www.nasdaq.com/market-activity/stock-market-holiday-schedule
+// https://www.nyse.com/markets/hours-calendars
+const US_MARKET_HOLIDAYS = new Set([
+  '2026-01-01','2026-01-19','2026-02-16','2026-04-03','2026-05-25',
+  '2026-06-19','2026-07-03','2026-09-07','2026-11-26','2026-12-25',
+  '2027-01-01','2027-01-18','2027-02-15','2027-03-26','2027-05-31',
+  '2027-06-18','2027-07-05','2027-09-06','2027-11-25','2027-12-24',
+  '2028-01-17','2028-02-21','2028-04-14','2028-05-29','2028-06-19',
+  '2028-07-04','2028-09-04','2028-11-23','2028-12-25'
+]);
+const US_EARLY_CLOSE_DATES = new Set(['2026-11-27','2026-12-24','2027-11-26','2028-07-03','2028-11-24']);
+function isUsTradingDate(date) {
+  const day = new Date(date + 'T12:00:00Z').getUTCDay();
+  return day >= 1 && day <= 5 && !US_MARKET_HOLIDAYS.has(date);
+}
+function getSessionCloseMinutes(item, date) {
+  return item.isUsStock ? (US_EARLY_CLOSE_DATES.has(date) ? 780 : 960) : 900;
+}
+function getExpectedUsCloseDate(now = new Date()) {
+  const current = getMarketDate({isUsStock:true}, now);
+  const stamp = getQuoteStamp({isUsStock:true}, {f86:now.getTime() / 1000});
+  const minutes = Number(stamp.slice(11,13)) * 60 + Number(stamp.slice(14,16));
+  let date = new Date(current + 'T12:00:00Z');
+  if (!isUsTradingDate(current) || minutes < getSessionCloseMinutes({isUsStock:true}, current)) date.setUTCDate(date.getUTCDate() - 1);
+  for (let i = 0; i < 14; i++, date.setUTCDate(date.getUTCDate() - 1)) {
+    const candidate = date.toISOString().slice(0,10);
+    if (isUsTradingDate(candidate)) return candidate;
+  }
+  return '';
+}
+function cleanupEtfCache() {
+  try {
+    Array.from({length:localStorage.length}, (_, i) => localStorage.key(i))
+      .filter(key => /^etf-(?:closes|iopv)-v1-/.test(key))
+      .filter(key => !ETF_TARGET_CODES.includes(key.replace(/^etf-(?:closes|iopv)-v1-/, '')) || key === 'etf-iopv-v1-QQQM')
+      .forEach(key => localStorage.removeItem(key));
+  } catch { /* Storage restrictions must not block a cold-browser load. */ }
+}
 function getBeijingNow(now = new Date()) {
   return new Date(now.getTime() + 480 * 60000);
 }
@@ -55,7 +95,7 @@ function isIopvCurrent(p, iopv, quoteTime, now = new Date()) {
   return minutes >= 690 && minutes < 780 && quoteMinutes >= 687 && quoteMinutes <= minutes + 2;
 }
 function createQuoteCandidate(p, raw, source, now = new Date()) {
-  if (!raw) return null;
+  if (!raw || (p.code && !ETF_TARGET_CODES.includes(p.code))) return null;
   const pre = toNum(raw.f60), actual = toNum(raw.f43);
   const open = toNum(raw.f46), high = toNum(raw.f44), low = toNum(raw.f45);
   const volume = toNum(raw.f47 ?? raw.volume), amount = toNum(raw.f48 ?? raw.amount);
@@ -64,8 +104,9 @@ function createQuoteCandidate(p, raw, source, now = new Date()) {
   const suspended = !p.isUsStock && String(raw.status || '').trim().toUpperCase() === 'S' &&
     quoteDate === getMarketDate(p, now);
   const price = validPositive(actual) ? actual : pre;
-  const noTrades = !validPositive(open) && !validPositive(high) && !validPositive(low) &&
-    !validPositive(volume) && !validPositive(amount);
+  const noTrades = (volume !== null && volume <= 0 && (amount === null || amount <= 0)) ||
+    (!validPositive(open) && !validPositive(high) && !validPositive(low) &&
+    !validPositive(volume) && !validPositive(amount));
   const missingPrice = !validPositive(actual);
   let stale = suspended || missingPrice || source === 'kline_fallback';
   if (!p.isUsStock) {
@@ -75,11 +116,12 @@ function createQuoteCandidate(p, raw, source, now = new Date()) {
       stale = stale || quoteDate !== getMarketDate(p, now) || !Number.isFinite(age) || age > 180000 || age < -120000;
     }
   } else {
-    // Allow weekends/one-day closures, but never label multi-day or undated prices as latest.
+    // Use the last completed trading session: holidays and early closes are not weekend gaps.
     const gap = (Date.parse(getMarketDate(p, now)) - Date.parse(quoteDate)) / 86400000;
     const latestAllowed = getQuoteStamp(p, {f86:(now.getTime() + 120000) / 1000});
-    stale = stale || !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(quoteTime) ||
-      !Number.isFinite(gap) || gap < 0 || gap > 3 || quoteTime > latestAllowed;
+    stale = stale || noTrades || !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(quoteTime) ||
+      !Number.isFinite(gap) || gap < 0 || gap > 5 || quoteTime > latestAllowed ||
+      !isUsTradingDate(quoteDate) || quoteDate < getExpectedUsCloseDate(now);
   }
   const chg = validPositive(actual) && validPositive(pre) ? (actual / pre - 1) * 100 : null;
   const extPrice = toNum(raw.f71 ?? raw.extPrice);
@@ -109,7 +151,7 @@ function quoteNote(p, d) {
     const label = d.noTrades || d.missingPrice ? '昨收兜底 · 暂无有效成交' : '历史报价参考 · 行情待更新';
     return label + time;
   }
-  return (p.isUsStock ? '美股最新报价' : (p.navIsCloseIopv ? '收盘报价（接口响应时间）' : '有效报价')) + time;
+  return (p.isUsStock ? '美股自身行情（接口时间）' : (p.navIsCloseIopv ? '收盘报价（接口响应时间）' : '有效报价')) + time;
 }
 
 // Public helpers used by index.html's classic scripts.

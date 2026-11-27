@@ -17,7 +17,8 @@ const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const storage = new Map();
 const context = vm.createContext({console, Date, Intl, Map, Set, window:{},
   fmt:(n,d)=>Number(n).toFixed(d), setTimeout, clearTimeout,
-  localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},
+  localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v),
+    removeItem:k=>storage.delete(k),key:i=>Array.from(storage.keys())[i]??null,get length(){return storage.size;}},
   document:{getElementById:()=>null}});
 for (const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
   if (/\bsrc=/.test(match[1])) continue;
@@ -53,7 +54,7 @@ assert.match(run('quoteNote(cn,createQuoteCandidate(cn,{...trading,quoteTime:"20
 assert.equal(run('createQuoteCandidate(cn,{...trading,f43:0,f60:0},"tencent",now).valid'), false);
 assert.equal(run('createQuoteCandidate(cn,{...trading,status:"S",quoteTime:"20261116151000"},"tencent",now).suspended'), false);
 // US prices need a timestamp, no future time and a bounded completed-session age.
-run('var usRaw={f43:661.75,f60:679.89,f46:671.04,f44:672.15,f45:660.48,f47:1000,quoteTime:"20261116160001"}; var regular=createQuoteCandidate(us,usRaw,"tencent",now)');
+run('var usRaw={f43:272.49,f60:279.97,f46:276.0,f44:277.0,f45:271.0,f47:1000,quoteTime:"20261116160001"}; var regular=createQuoteCandidate(us,usRaw,"tencent",now)');
 assert.equal(run('regular.stale'), false);
 assert.equal(run('createQuoteCandidate(us,{...usRaw,quoteTime:"20261111160001"},"tencent",now).stale'), true);
 assert.equal(run('createQuoteCandidate(us,{...usRaw,quoteTime:""},"tencent",now).stale'), true);
@@ -79,10 +80,10 @@ for (const [code,price,count] of [['513390',2.38,209],['159655',1.97,209],['1595
 }
 assert.equal(run('combineHistory(us,[],new Date("2026-11-16T19:59:00Z")).at(-1)[0]'), '2026-11-13');
 const navCache = vm.runInContext('(' + html.match(/const PUBLISHED_NAV_CACHE = (\{[\s\S]*?\});/)[1] + ')', vm.createContext());
-for (const [code,nav12,nav13,nav24] of [['513390',2.1238,2.0974,1.9667],['159655',1.8438,1.837,1.7474],['159501',1.7778,1.7555,1.6459]]) {
-  // Latest disclosure is 11/24; earlier values remain available as as-of references.
-  assert.equal(navCache[code].date,'2026-11-24');
-  assert.equal(navCache[code].nav,nav24);
+for (const [code,nav12,nav13,nav25] of [['513390',2.1238,2.0974,1.9536],['159655',1.8438,1.837,1.7454],['159501',1.7778,1.7555,1.6349]]) {
+  // Latest disclosure is 11/25; earlier values remain available as as-of references.
+  assert.equal(navCache[code].date,'2026-11-25');
+  assert.equal(navCache[code].nav,nav25);
   const rows = JSON.parse(run(`JSON.stringify(getStaticHistory({code:'${code}'}))`));
   for(const [date,nav] of [['2026-11-12',nav12],['2026-11-13',nav13]]) {
     const row=rows.find(r=>r[0]===date);
@@ -115,7 +116,7 @@ assert.equal((2.38*202100+1.958*74500-650099).toFixed(0),'-23230');
 assert.equal(run('weightedBuyPremium([{amt:150000,prem:9.81},{amt:49500,prem:9.97},{amt:100000,prem:10.47},{amt:100000,prem:9.38},{amt:100000,prem:9.59}]).toFixed(2)'), '9.83');
 assert(html.includes('--（${unavailable}）'));
 assert(html.includes('typeof getExtendedSnapshot'));
-assert.equal((html.match(/src="(?:quote-integrity|history-integrity|extended-quotes)\.js\?v=20261126-close"/g)||[]).length,3);
+assert.equal((html.match(/src="(?:quote-integrity|history-integrity|extended-quotes)\.js\?v=20261127-close"/g)||[]).length,3);
 assert(!html.includes('price:684.000'));
 assert(html.includes("code:'QQQM', secid:'105.QQQM'") && !html.includes("code:'QQQ', secid:'105.QQQ'"));
 assert.equal(run('getStaticHistory({code:"QQQM"}).length'),227);
@@ -306,9 +307,9 @@ storage.set('etf-closes-v1-QQQM',JSON.stringify([['2026-11-19',1],['2026-11-23',
 assert.equal(run(`combineHistory(us,[["2026-11-23",3]],${atPatrol}).at(-1)[1]`),267.97);
 storage.clear();
 // Only missing dates can be filled by cache; a live sample may update an unverified date.
-storage.set('etf-closes-v1-513390','[["2026-11-27",2.4]]');
-assert.equal(run('combineHistory(cn,[["2026-11-27",2.5]],new Date("2026-11-27T07:25:00Z")).at(-1)[1]'),2.5);
-assert.equal(run('combineHistory(cn,[],new Date("2026-11-27T07:25:00Z")).at(-1)[1]'),2.4);
+storage.set('etf-closes-v1-513390','[["2026-11-30",2.4]]');
+assert.equal(run('combineHistory(cn,[["2026-11-30",2.5]],new Date("2026-11-30T07:25:00Z")).at(-1)[1]'),2.5);
+assert.equal(run('combineHistory(cn,[],new Date("2026-11-30T07:25:00Z")).at(-1)[1]'),2.4);
 storage.clear();
 storage.set('etf-closes-v1-513390','{broken');
 assert.equal(run(`combineHistory(cn,[],${atPatrol}).at(-1)[1]`),2.321);
@@ -389,7 +390,7 @@ assert.equal(run('selectNavForTest(cn,{"513390":{...trading,status:"S",iopv:null
 fixedTime = Date.parse('2026-11-26T07:25:00Z');
 assert.equal(run('selectNavForTest(cn,{"513390":{...trading,status:"S",iopv:null,quoteTime:"2026-11-26 15:21:23"}}).nav'),1.9535);
 fixedTime = Date.parse('2026-11-27T07:25:00Z');
-assert.equal(run('selectNavForTest(cn,{"513390":{...trading,status:"S",iopv:null,quoteTime:"2026-11-27 15:21:23"}}).nav'),1.9667);
+assert.equal(run('selectNavForTest(cn,{"513390":{...trading,status:"S",iopv:null,quoteTime:"2026-11-27 15:21:23"}}).nav'),1.9538);
 context.Date = RealDate;
 // A sparse NAV before a price date may be used; later NAVs must never leak backwards.
 const sparse=JSON.parse(run('JSON.stringify(buildHistoricalReferenceRows([["2026-11-13",2,8],["2026-11-16",2.38,null],["2026-11-18",2.369,null]],[["2026-11-17",2.0261],["2026-11-15",2.0411]]))'));
@@ -413,14 +414,14 @@ run('loadOfficialNavHistory(cn)').then(async rows=>{
     assert(Math.abs(row19[2]-(row19[1]/nav19-1)*100)<1e-9);
     assert(Math.abs(row20[2]-(row20[1]/nav20-1)*100)<1e-9);
   }
-  console.log(`PASS: ${assertionCount} assertions; syntax, QQQM anti-regression, cold-browser closes through 11/25, actual IOPV, polluted cache, suspension/no-trades, dated NAV/as-of premiums, isolated NAV feeds and holdings`);
+  console.log(`PASS: ${assertionCount} assertions; syntax, QQQM anti-regression, cold-browser closes through 11/27 A shares and 11/25 QQQM, actual IOPV, polluted cache, suspension/no-trades, dated NAV/as-of premiums, isolated NAV feeds and holdings`);
 }).catch(error=>{console.error(error);process.exitCode=1;});
 
 // November 26 close: source-verified values survive a cold browser and polluted caches.
 for (const [code,price,iopv,time,roundedPremium,nav24] of [
-  ['513390',2.271,1.9535,'15:09:01','16.25',1.9667],
-  ['159655',1.873,1.7456,'15:08:51','7.30',1.7474],
-  ['159501',1.964,1.6349,'15:08:39','20.13',1.6459]
+  ['513390',2.271,1.9535,'15:09:01','16.25',1.9536],
+  ['159655',1.873,1.7456,'15:08:51','7.30',1.7454],
+  ['159501',1.964,1.6349,'15:08:39','20.13',1.6349]
 ]) {
   storage.clear();
   const item = `{code:"${code}",isUsStock:false}`;
@@ -435,7 +436,7 @@ for (const [code,price,iopv,time,roundedPremium,nav24] of [
   assert.equal(run(`combineHistory(${item},[],new Date("2026-11-26T06:59:00Z")).at(-1)[0]`),'2026-11-25');
   const reference = JSON.parse(run(`JSON.stringify(buildHistoricalReferenceRows(combineHistory(${item},[],${atClose}),getStaticPublishedNavRows("${code}")).at(-1))`));
   assert(Math.abs(reference[2]-(price/nav24-1)*100)<1e-9);
-  assert.notEqual(reference[2].toFixed(2),roundedPremium); // Published NAV is not IOPV.
+  assert.equal(reference[0],'2026-11-26'); // Equal rounded values do not make published NAV an IOPV observation.
   storage.set('etf-closes-v1-'+code,'[["2026-11-26",99]]');
   assert.deepEqual(JSON.parse(run(`JSON.stringify(combineHistory(${item},[["2026-11-26",88]],${atClose}).at(-1))`)),rows.at(-1));
 }
@@ -444,3 +445,83 @@ assert(html.includes('<span class="${cls(d.f170)}">${fmt(price,3)}</span>'));
 assert(html.includes('成本盈亏 ${arrow(vsCost)}'));
 assert.equal(run('combineHistory(us,[],new Date("2026-11-26T22:00:00Z")).at(-1)[0]'),'2026-11-25');
 assert.equal(run('combineHistory(us,[],new Date("2026-11-26T22:00:00Z")).at(-1)[1]'),261.05);
+
+// November 27 close audit: checked quote/IOPV snapshots, fixed identities and cold-cache recovery.
+vm.runInContext(html.slice(html.indexOf('const cls = n=>'),html.indexOf('const arrow = n=>')),context);
+const closeFixture = JSON.parse(fs.readFileSync(path.join(__dirname,'fixtures/close-2026-11-27.json'),'utf8'));
+assert.deepEqual(closeFixture.fixedTargets,['513390','159655','159501','QQQM']);
+assert.deepEqual(JSON.parse(run('JSON.stringify(ETF_TARGET_CODES)')),closeFixture.fixedTargets);
+assert(!html.includes('HISTORY_QQQ'));
+assert(!html.includes('159941'));
+assert(html.includes('cleanupEtfCache();'));
+assert(html.includes('接口时间，非成交时间'));
+assert(html.includes('参考报价 / 已公布历史净值'));
+const closeAuditNow = new Date('2026-11-27T07:25:00Z');
+for (const fixture of closeFixture.quotes) {
+  storage.clear();
+  const item = {code:fixture.code,isUsStock:fixture.code==='QQQM'};
+  const expr = JSON.stringify(item);
+  const stamp = 'new Date("2026-11-27T07:25:00Z")';
+  const raw = {f43:fixture.price,f60:fixture.previousClose,f46:fixture.open,f44:fixture.high,
+    f45:fixture.low,f47:fixture.volume,quoteTime:fixture.quoteTime};
+  const candidate = JSON.parse(run(`JSON.stringify(createQuoteCandidate(${expr},${JSON.stringify(raw)},"tencent",${stamp}))`));
+  assert.equal(candidate.stale,false);
+  assert.equal(candidate.f43,fixture.price);
+  assert(Math.abs(candidate.f170-(fixture.price/fixture.previousClose-1)*100)<1e-9);
+  assert.equal(run(`cls(${candidate.f170})`),item.isUsStock?'down':'up');
+  const rows = JSON.parse(run(`JSON.stringify(combineHistory(${expr},[],${stamp}))`));
+  assert.equal(rows.length,item.isUsStock?227:218);
+  assert.deepEqual(rows.at(-1).slice(0,2),[fixture.quoteTime.slice(0,10),fixture.price]);
+  storage.set('etf-closes-v1-'+fixture.code,JSON.stringify([[fixture.quoteTime.slice(0,10),999]]));
+  assert.deepEqual(JSON.parse(run(`JSON.stringify(combineHistory(${expr},[],${stamp}))`)),rows);
+  if (item.isUsStock) {
+    storage.set('etf-iopv-v1-QQQM','[["2026-11-27 15:10:00",999,1]]');
+    assert.equal(run(`readIopvArchive(${expr},${stamp}).length`),0);
+    assert.equal(run(`readIopvArchive({code:"QQQM"},${stamp}).length`),0);
+    assert(rows.every(row=>row[2]===null));
+    assert.equal(fixture.compareOnly,true);
+  } else {
+    const observed = JSON.parse(run(`JSON.stringify(getArchivedCloseIopv(${expr},"2026-11-27",${stamp}))`));
+    assert.deepEqual(observed,[fixture.quoteTime,fixture.price,fixture.iopv]);
+    assert.equal(((fixture.price/fixture.iopv-1)*100).toFixed(2),fixture.premium);
+    storage.set('etf-iopv-v1-'+fixture.code,JSON.stringify([[fixture.quoteTime,999,999]]));
+    assert.deepEqual(JSON.parse(run(`JSON.stringify(getArchivedCloseIopv(${expr},"2026-11-27",${stamp}))`)),observed);
+    assert.equal(run(`getArchivedCloseIopv(${expr},"2026-11-27",new Date("2026-11-27T06:59:00Z"))`),null);
+    const reference = JSON.parse(run(`JSON.stringify(buildHistoricalReferenceRows(combineHistory(${expr},[],${stamp}),getStaticPublishedNavRows("${fixture.code}")).at(-1))`));
+    assert(Math.abs(reference[2]-(fixture.price/fixture.publishedNav-1)*100)<1e-9);
+  }
+  // Synthetic zero-volume mutation of this target's own quote, not another ETF's prices.
+  const noTrade = {...raw,f47:0,f48:0};
+  assert.equal(run(`createQuoteCandidate(${expr},${JSON.stringify(noTrade)},"tencent",${stamp}).noTrades`),true);
+  assert.equal(run(`createQuoteCandidate(${expr},${JSON.stringify(noTrade)},"tencent",${stamp}).stale`),true);
+}
+storage.clear();
+for (const key of ['etf-closes-v1-QQQ','etf-closes-v1-159941','etf-iopv-v1-QQQM','etf-iopv-v1-QQQ','etf-closes-v1-QQQM','etf-closes-v1-513390','unrelated-cache']) storage.set(key,'[]');
+run('cleanupEtfCache()');
+assert.deepEqual(Array.from(storage.keys()).sort(),['etf-closes-v1-513390','etf-closes-v1-QQQM','unrelated-cache']);
+storage.clear();
+for (const code of ['QQQ','159941']) {
+  assert.equal(run(`createQuoteCandidate({code:"${code}"},usRaw,"tencent",now)`),null);
+  assert.equal(run(`combineHistory({code:"${code}"},[["2026-11-25",1]],now).length`),0);
+}
+assert.equal(run('cls(0)'),'flat');
+assert.equal(run('isUsTradingDate("2026-11-26")'),false);
+assert.equal(run('getSessionCloseMinutes(us,"2026-11-27")'),780);
+assert.equal(run('getExpectedUsCloseDate(new Date("2026-11-27T17:59:59Z"))'),'2026-11-25');
+assert.equal(run('getExpectedUsCloseDate(new Date("2026-11-27T18:00:00Z"))'),'2026-11-27');
+assert.equal(run('getExpectedUsCloseDate(new Date("2026-11-30T13:00:00Z"))'),'2026-11-27');
+// Synthetic timestamp mutations test the calendar; these values are never rendered as verified prices.
+run('var holidayQuote={...usRaw,f43:261.05,f60:262.78,quoteTime:"2026-11-25 16:00:02"}');
+assert.equal(run('createQuoteCandidate(us,holidayQuote,"tencent",new Date("2026-11-27T07:25:00Z")).stale'),false);
+assert.equal(run('createQuoteCandidate(us,holidayQuote,"tencent",new Date("2026-11-30T13:00:00Z")).stale'),true);
+assert.equal(run('createQuoteCandidate(us,{...holidayQuote,quoteTime:"2026-11-26 16:00:02"},"tencent",new Date("2026-11-27T07:25:00Z")).stale'),true);
+assert.equal(run('sanitizeHistory(us,[["2026-11-26",999]],new Date("2026-11-27T07:25:00Z")).length'),0);
+run('var halfQuote={...holidayQuote,quoteTime:"2026-11-27 13:00:02",stale:false};us.extSnapshot={price:262,time:"2026-11-27 13:15:00",tag:"after"}');
+assert.equal(run('recordCompletedClose(us,halfQuote,new Date("2026-11-27T17:59:59Z"))'),false);
+assert.equal(run('recordCompletedClose(us,halfQuote,new Date("2026-11-27T18:05:00Z"))'),true);
+assert.equal(run('getExtendedSnapshot(us,halfQuote,new Date("2026-11-27T18:20:00Z")).price'),262);
+assert.equal(run('recordCompletedClose(cn,{f43:2.344,quoteTime:"2026-11-27 15:40:00"},new Date("2026-11-27T07:40:00Z"))'),false);
+storage.clear();
+storage.set('etf-iopv-v1-513390','[["2026-11-30 10:00:00",2.344,1.9538],["2026-11-30 15:40:00",2.344,1.9538]]');
+assert.equal(run('getArchivedCloseIopv(cn,"2026-11-30",new Date("2026-11-30T08:00:00Z"))'),null);
+storage.clear();

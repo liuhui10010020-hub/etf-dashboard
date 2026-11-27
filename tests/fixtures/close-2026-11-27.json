@@ -1,0 +1,22 @@
+{
+  "auditDate": "2026-11-27",
+  "quoteSource": "https://qt.gtimg.cn/q=sh513390,sz159655,sz159501,usQQQM",
+  "navSource": "https://fund.eastmoney.com/pingzhongdata/{code}.js",
+  "timestampMeaning": "接口响应时间，不保证为最后成交时间",
+  "fixedTargets": ["513390", "159655", "159501", "QQQM"],
+  "quotes": [
+    {"code":"513390","quoteTime":"2026-11-27 15:09:16","price":2.344,"previousClose":2.271,"open":2.310,"high":2.345,"low":2.309,"volume":522273,"iopv":1.9538,"premium":"19.97","publishedNavDate":"2026-11-25","publishedNav":1.9536},
+    {"code":"159655","quoteTime":"2026-11-27 15:08:45","price":1.926,"previousClose":1.873,"open":1.888,"high":1.932,"low":1.884,"volume":930754,"iopv":1.7421,"premium":"10.56","publishedNavDate":"2026-11-25","publishedNav":1.7454},
+    {"code":"159501","quoteTime":"2026-11-27 15:08:45","price":2.019,"previousClose":1.964,"open":1.985,"high":2.020,"low":1.982,"volume":691540,"iopv":1.6351,"premium":"23.48","publishedNavDate":"2026-11-25","publishedNav":1.6349},
+    {"code":"QQQM","quoteTime":"2026-11-25 16:00:02","price":261.05,"previousClose":262.78,"open":254.10,"high":261.42,"low":250.27,"volume":8606005,"iopv":null,"premium":null,"compareOnly":true,"currency":"USD"}
+  ],
+  "qqqmIndependentCloseCheck": {
+    "source": "https://query1.finance.yahoo.com/v8/finance/chart/QQQM?range=1y&interval=1d",
+    "symbol": "QQQM",
+    "verifiedHistoryRows": 227,
+    "historicalPriceBasis": "QQQM自身前复权收盘价（Yahoo adjclose），非QQQ代理或价格缩放",
+    "lastCloses": [["2026-11-23",267.97],["2026-11-24",262.78],["2026-11-25",261.05]]
+  },
+  "usCalendarSource": "https://www.nasdaq.com/market-activity/stock-market-holiday-schedule",
+  "usCalendar": {"2026-11-26":"感恩节休市","2026-11-27":"13:00美东提前收盘"}
+}

@@ -1,5 +1,5 @@
 /* Tencent's timestamped extended-session quotes. Never infer them from regular quote fields. */
-/* global fetchTencentQuotes, validPositive, getQuoteStamp, getMarketDate */
+/* global fetchTencentQuotes, validPositive, getQuoteStamp, getMarketDate, getSessionCloseMinutes, isUsTradingDate */
 function fetchUsExtended(items) {
   return Promise.all(items.filter(p => p.isUsStock).map(p => new Promise(resolve => {
     const key = 'etf_extended_' + p.code + '_' + Date.now();
@@ -49,8 +49,10 @@ function getExtendedSnapshot(item, regular, now = new Date()) {
   const latestAllowed = getQuoteStamp(item, {f86:(now.getTime() + 120000) / 1000});
   if (date > getMarketDate(item, now) || snapshot.time > latestAllowed || snapshot.time < regular.quoteTime) return null;
   const minutes = Number(snapshot.time.slice(11, 13)) * 60 + Number(snapshot.time.slice(14, 16));
-  // Tencent keeps refreshing the after-hours print past 20:00 ET, so accept any time from the close to end of day.
-  if (snapshot.tag === 'after' && date === regularDate && minutes >= 960 && minutes <= 1439) return snapshot;
+  const closeMinutes = getSessionCloseMinutes(item, date);
+  if (!isUsTradingDate(date)) return null;
+  // Tencent's time is a response timestamp; UI explicitly distinguishes it from a trade print.
+  if (snapshot.tag === 'after' && date === regularDate && minutes >= closeMinutes && minutes <= 1439) return snapshot;
   if (snapshot.tag === 'before' && date > regularDate && date === getMarketDate(item, now) &&
       minutes >= 240 && minutes < 570) return snapshot;
   return null;
